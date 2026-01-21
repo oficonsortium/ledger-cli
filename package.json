@@ -1,0 +1,81 @@
+{
+  "name": "@ofi/ledger-cli",
+  "version": "1.0.0",
+  "description": "CLI tools to download OFi / Open Collective transactions and convert them to hledger journals",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "ofi-balance-download": "./balance-download.js",
+    "ofi-csv-download": "./csv-download.js",
+    "ofi-hledger": "./hledger.js",
+    "ofi-hledger-convert": "./hledger-convert.js",
+    "ofi-ledger-cli-init": "./ledger-cli-init.js"
+  },
+  "files": [
+    "docs/",
+    "balance-download.js",
+    "csv-download.js",
+    "hledger-convert.js",
+    "hledger.js",
+    "ledger-cli-init.js",
+    "rules-base.js"
+  ],
+  "scripts": {
+    "depcheck": "npx @opencollective/depcheck .",
+    "graphql:update": "curl https://raw.githubusercontent.com/opencollective/opencollective-frontend/main/lib/graphql/schemaV2.graphql --output graphql/schemaV2.graphql && prettier graphql/schemaV2.graphql --write",
+    "lint": "eslint .",
+    "lint:fix": "npm run lint -- --fix",
+    "lint:quiet": "npm run lint -- --quiet",
+    "lint-staged": "lint-staged",
+    "prepare": "husky",
+    "prettier": "prettier \"**/*.@(js|json|md|graphql)\"",
+    "prettier:check": "npm run prettier -- --check",
+    "prettier:write": "npm run prettier -- --write"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "csv-parse": "^6.1.0",
+    "dotenv": "^17.2.4",
+    "glob": "^13.0.1"
+  },
+  "devDependencies": {
+    "@graphql-eslint/eslint-plugin": "^4.4.0",
+    "eslint": "^9.39.2",
+    "eslint-config-opencollective": "^6.1.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^17.23.2",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "graphql": "^16.12.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "prettier-package-json": "^2.8.0",
+    "typescript-eslint": "^8.54.0"
+  },
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
+  "@opencollective/depcheck": {
+    "ignores": [
+      "@graphql-eslint/eslint-plugin",
+      "eslint-import-resolver-typescript",
+      "graphql",
+      "prettier-package-json",
+      "typescript-eslint"
+    ]
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,graphql}": [
+      "prettier --write"
+    ],
+    "package.json": [
+      "prettier-package-json --write"
+    ]
+  }
+}
