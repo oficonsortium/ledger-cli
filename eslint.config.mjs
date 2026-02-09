@@ -6,7 +6,7 @@ export default [
   ...openCollectiveConfig,
   // Global ignores
   {
-    ignores: ['**/node_modules/', 'ofico/', 'raft/', '*.journal'],
+    ignores: ['**/node_modules/', '*.journal'],
   },
   {
     files: ['**/*.js'],

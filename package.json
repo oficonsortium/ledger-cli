@@ -5,11 +5,11 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "ofi-balance-download": "./balance-download.js",
-    "ofi-csv-download": "./csv-download.js",
-    "ofi-hledger": "./hledger.js",
-    "ofi-hledger-convert": "./hledger-convert.js",
-    "ofi-ledger-cli-init": "./ledger-cli-init.js"
+    "ofi-balance-download": "balance-download.js",
+    "ofi-csv-download": "csv-download.js",
+    "ofi-hledger": "hledger.js",
+    "ofi-hledger-convert": "hledger-convert.js",
+    "ofi-ledger-cli-init": "ledger-cli-init.js"
   },
   "files": [
     "docs/",
@@ -29,8 +29,8 @@
     "lint-staged": "lint-staged",
     "prepare": "husky",
     "prettier": "prettier \"**/*.@(js|json|md|graphql)\"",
-    "prettier:check": "npm run prettier -- --check",
-    "prettier:write": "npm run prettier -- --write"
+    "prettier:check": "npm run prettier -- --check && prettier-package-json --list-different",
+    "prettier:write": "npm run prettier -- --write && prettier-package-json --write"
   },
   "dependencies": {
     "commander": "^14.0.3",
@@ -57,12 +57,13 @@
     "node": ">=24",
     "npm": ">=11"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "@opencollective/depcheck": {
     "ignores": [
-      "@graphql-eslint/eslint-plugin",
       "eslint-import-resolver-typescript",
       "graphql",
-      "prettier-package-json",
       "typescript-eslint"
     ]
   },
