@@ -250,16 +250,22 @@ async function main(argv = process.argv) {
   console.error(`Transactions (${lastMonthLabel}): ${lastMonthCount.toLocaleString()}`);
   console.error(`Transactions (${lastYearLabel}):    ${lastYearCount.toLocaleString()}`);
 
-  // Pick strategy
-  const strategy = pickStrategy(lastMonthCount, lastYearCount);
-  console.error(`Strategy:           ${strategy}`);
-
-  // Build defaults from API data
-  const defaults = buildDefaults({ slug, hasHosting, strategy, oldestDate });
-
-  // Load existing config and merge
+  // Load existing config
   const dir = path.resolve(slug);
   const existing = fs.existsSync(dir) ? await loadAccountConfig(dir) : null;
+
+  // Pick strategy (existing config wins)
+  const computedStrategy = pickStrategy(lastMonthCount, lastYearCount);
+  const existingStrategy = existing?.['oc-csv-download']?.strategy;
+  const strategy = existingStrategy || computedStrategy;
+  if (existingStrategy && existingStrategy !== computedStrategy) {
+    console.error(`Strategy:           ${existingStrategy} (configured, computed: ${computedStrategy})`);
+  } else {
+    console.error(`Strategy:           ${strategy}`);
+  }
+
+  // Build defaults from API data and merge
+  const defaults = buildDefaults({ slug, hasHosting, strategy: computedStrategy, oldestDate });
   const merged = existing ? mergeDefaults(existing, defaults) : defaults;
 
   const configContent = serializeConfig(merged);
