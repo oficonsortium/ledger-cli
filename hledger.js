@@ -109,6 +109,9 @@ if (opts.convert) {
   if (opts.from) {
     convertArgs.push('--from', opts.from);
   }
+  if (opts.to) {
+    convertArgs.push('--to', opts.to);
+  }
   console.error(`> ofi-hledger-convert ${convertArgs.slice(1).join(' ')}`);
   execFileSync('node', convertArgs, { stdio: 'inherit' });
 }

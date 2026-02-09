@@ -1284,6 +1284,7 @@ const getProgram = (argv) => {
   );
   program.option('--fee-format <format>', 'Fee format: auto (default), rows, columns', 'auto');
   program.option('--from <date>', 'Skip rows before this date (YYYY-MM-DD)');
+  program.option('--to <date>', 'Skip rows on or after this date (YYYY-MM-DD)');
   program.option('--date-field <field>', 'Date field: transaction (default) or effective', 'transaction');
   program.option('--stats', 'Print rule match statistics after conversion');
 
@@ -1400,6 +1401,12 @@ async function processInput(input, program) {
       ? cliOptions.from
       : hledgerConfig.from || config?.['oc-csv-download']?.from || undefined;
 
+  // Resolve --to: CLI > oc-hledger-convert.to > oc-csv-download.to
+  const toDate =
+    program.getOptionValueSource('to') === 'cli'
+      ? cliOptions.to
+      : hledgerConfig.to || config?.['oc-csv-download']?.to || undefined;
+
   // Set the date column based on --date-field option
   if (dateField === 'effective') {
     COLUMNS.date = DATE_COLUMNS.effective;
@@ -1452,6 +1459,19 @@ async function processInput(input, program) {
     const filtered = totalBefore - rows.length;
     if (filtered > 0) {
       console.warn(`Filtered ${filtered} rows before ${fromDate} (${rows.length} remaining)`);
+    }
+  }
+
+  // Filter rows on or after the to date (exclusive upper bound, same as --from logic)
+  if (toDate) {
+    const totalBefore = rows.length;
+    rows = rows.filter((row) => {
+      const txnDate = (row[DATE_COLUMNS.transaction] || '').substring(0, 10);
+      return txnDate < toDate;
+    });
+    const filtered = totalBefore - rows.length;
+    if (filtered > 0) {
+      console.warn(`Filtered ${filtered} rows on or after ${toDate} (${rows.length} remaining)`);
     }
   }
 
