@@ -80,6 +80,13 @@ if (fs.existsSync(configPath)) {
   config = (await import(configPath)).default;
 }
 
+if (opts.download && !opts.from) {
+  const configFrom = config?.['ofi-csv-download']?.from;
+  if (configFrom) {
+    console.error(`Downloading from ${configFrom} (config default). Use --from to override.`);
+  }
+}
+
 if (opts.download) {
   const downloadScript = path.join(__dirname, 'csv-download.js');
   const downloadArgs = [downloadScript, accountDir];

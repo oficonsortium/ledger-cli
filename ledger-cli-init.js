@@ -290,6 +290,11 @@ async function main(argv = process.argv) {
   } else {
     console.error(`\nWrote ${slug}/oc.config.js`);
   }
+
+  if (defaults['ofi-csv-download']?.from) {
+    console.error(`Download start date: ${defaults['ofi-csv-download'].from} (oldest transaction)`);
+    console.error(`Use --from to download a specific range instead.`);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
