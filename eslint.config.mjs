@@ -19,7 +19,22 @@ export default [
     rules: {
       'n/no-process-exit': 'off',
       'n/hashbang': 'off',
+      'n/prefer-node-protocol': 'error',
       'no-console': 'off',
+      // Sort node: builtins before npm packages
+      'simple-import-sort/imports': [
+        'error',
+        {
+          groups: [
+            ['^\\u0000'],
+            ['^node:'],
+            ['^@?\\w'],
+            ['^[^.]'],
+            ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
+            ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
+          ],
+        },
+      ],
     },
   },
   // Extract GraphQL operations from /* GraphQL */ template literals in JS files
