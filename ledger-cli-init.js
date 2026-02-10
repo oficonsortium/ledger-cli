@@ -149,8 +149,8 @@ function buildDefaults({ slug, hasHosting, strategy, oldestDate }) {
 
   return {
     slug,
-    'oc-csv-download': downloadConfig,
-    'oc-hledger-convert': convertConfig,
+    'ofi-csv-download': downloadConfig,
+    'ofi-hledger-convert': convertConfig,
   };
 }
 
@@ -256,7 +256,7 @@ async function main(argv = process.argv) {
 
   // Pick strategy (existing config wins)
   const computedStrategy = pickStrategy(lastMonthCount, lastYearCount);
-  const existingStrategy = existing?.['oc-csv-download']?.strategy;
+  const existingStrategy = existing?.['ofi-csv-download']?.strategy;
   const strategy = existingStrategy || computedStrategy;
   if (existingStrategy && existingStrategy !== computedStrategy) {
     console.error(`Strategy:           ${existingStrategy} (configured, computed: ${computedStrategy})`);

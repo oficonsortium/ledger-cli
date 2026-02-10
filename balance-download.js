@@ -510,7 +510,7 @@ async function main(argv = process.argv) {
   if (accountDirArg) {
     const isDir = fs.existsSync(accountDirArg) && fs.statSync(accountDirArg).isDirectory();
     const config = isDir ? await loadAccountConfig(accountDirArg) : null;
-    const downloadConfig = config?.['oc-csv-download'] || {};
+    const downloadConfig = config?.['ofi-csv-download'] || {};
 
     slug = config?.slug || (isDir ? path.basename(accountDirArg) : accountDirArg);
     isHost = options.host ? true : (downloadConfig.host ?? false);

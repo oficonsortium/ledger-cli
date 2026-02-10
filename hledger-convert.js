@@ -1284,7 +1284,7 @@ const getProgram = (argv) => {
   );
   program.option('--fee-format <format>', 'Fee format: auto (default), rows, columns', 'auto');
   program.option('--from <date>', 'Skip rows before this date (YYYY-MM-DD)');
-  program.option('--to <date>', 'Skip rows on or after this date (YYYY-MM-DD)');
+  program.option('--to <date>', 'Skip rows after this date (YYYY-MM-DD, inclusive)');
   program.option('--date-field <field>', 'Date field: transaction (default) or effective', 'transaction');
   program.option('--stats', 'Print rule match statistics after conversion');
 
@@ -1376,7 +1376,7 @@ async function processInput(input, program) {
   // Check if input is a directory with oc.config.js
   const isDir = fs.existsSync(input) && fs.statSync(input).isDirectory();
   const config = isDir ? await loadAccountConfig(input) : null;
-  const hledgerConfig = config?.['oc-hledger-convert'] || {};
+  const hledgerConfig = config?.['ofi-hledger-convert'] || {};
 
   // Helper: use CLI value if explicitly set, otherwise config value, otherwise default
   const resolve = (optionName, configKey, fallback) => {
@@ -1395,17 +1395,17 @@ async function processInput(input, program) {
   const dateField = resolve('dateField', 'date-field', 'transaction');
   const outputPath = resolve('output', 'output', isDir ? 'transactions.journal' : undefined);
 
-  // Resolve --from: CLI > oc-hledger-convert.from > oc-csv-download.from
+  // Resolve --from: CLI > ofi-hledger-convert.from > ofi-csv-download.from
   const fromDate =
     program.getOptionValueSource('from') === 'cli'
       ? cliOptions.from
-      : hledgerConfig.from || config?.['oc-csv-download']?.from || undefined;
+      : hledgerConfig.from || config?.['ofi-csv-download']?.from || undefined;
 
-  // Resolve --to: CLI > oc-hledger-convert.to > oc-csv-download.to
+  // Resolve --to: CLI > ofi-hledger-convert.to > ofi-csv-download.to
   const toDate =
     program.getOptionValueSource('to') === 'cli'
       ? cliOptions.to
-      : hledgerConfig.to || config?.['oc-csv-download']?.to || undefined;
+      : hledgerConfig.to || config?.['ofi-csv-download']?.to || undefined;
 
   // Set the date column based on --date-field option
   if (dateField === 'effective') {
@@ -1462,16 +1462,16 @@ async function processInput(input, program) {
     }
   }
 
-  // Filter rows on or after the to date (exclusive upper bound, same as --from logic)
+  // Filter rows after the to date (inclusive upper bound)
   if (toDate) {
     const totalBefore = rows.length;
     rows = rows.filter((row) => {
       const txnDate = (row[DATE_COLUMNS.transaction] || '').substring(0, 10);
-      return txnDate < toDate;
+      return txnDate <= toDate;
     });
     const filtered = totalBefore - rows.length;
     if (filtered > 0) {
-      console.warn(`Filtered ${filtered} rows on or after ${toDate} (${rows.length} remaining)`);
+      console.warn(`Filtered ${filtered} rows after ${toDate} (${rows.length} remaining)`);
     }
   }
 

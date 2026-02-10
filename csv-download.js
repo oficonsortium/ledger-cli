@@ -1138,28 +1138,28 @@ File layout:
 
 Examples:
   # Download last 30 days for a fiscal host
-  oc-csv-download ofitech --host
+  ofi-csv-download ofitech --host
 
   # Download specific date range
-  oc-csv-download opencollective --from 2024-01-01 --to 2024-12-31
+  ofi-csv-download opencollective --from 2024-01-01 --to 2024-12-31
 
   # Download last 7 days
-  oc-csv-download myorg --days 7
+  ofi-csv-download myorg --days 7
 
   # Download by day instead of by month
-  oc-csv-download ofitech --host --daily --from 2024-01-01 --to 2024-12-31
+  ofi-csv-download ofitech --host --daily --from 2024-01-01 --to 2024-12-31
 
   # Download by year instead of by month
-  oc-csv-download eslint --yearly
+  ofi-csv-download eslint --yearly
 
   # Using --strategy flag
-  oc-csv-download eslint --strategy yearly
+  ofi-csv-download eslint --strategy yearly
 
   # Preview what would be downloaded
-  oc-csv-download ofitech --host --dry-run
+  ofi-csv-download ofitech --host --dry-run
 
   # Replace existing files
-  oc-csv-download ofitech --host --replace
+  ofi-csv-download ofitech --host --replace
 `,
   );
 
@@ -1191,7 +1191,7 @@ async function main(argv = process.argv) {
   // Check if slug is a directory with oc.config.js
   const isDir = fs.existsSync(slug) && fs.statSync(slug).isDirectory();
   const config = isDir ? await loadAccountConfig(slug) : null;
-  const downloadConfig = config?.['oc-csv-download'] || {};
+  const downloadConfig = config?.['ofi-csv-download'] || {};
 
   // Helper: use CLI value if explicitly set, otherwise config value, otherwise default
   const resolve = (optionName, configKey, fallback) => {

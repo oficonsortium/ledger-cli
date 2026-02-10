@@ -117,7 +117,7 @@ if (opts.convert) {
 }
 
 if (hledgerArgs.length > 0) {
-  const output = config['oc-hledger-convert']?.output || 'transactions.journal';
+  const output = config['ofi-hledger-convert']?.output || 'transactions.journal';
   const journalPath = path.join(accountDir, output);
   const defaultArgs = config['hledger']?.args || [];
   const fullArgs = ['-f', journalPath, ...defaultArgs, ...hledgerArgs];
