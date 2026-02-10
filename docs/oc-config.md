@@ -6,10 +6,10 @@ Per-account configuration file. Place in each account directory to set defaults 
 
 ```js
 export default {
-  'oc-csv-download': {
+  'ofi-csv-download': {
     /* ... */
   },
-  'oc-hledger-convert': {
+  'ofi-hledger-convert': {
     /* ... */
   },
   hledger: {
@@ -30,7 +30,7 @@ When set, `slug` is used by `ofi-csv-download` for API requests, `ofi-hledger-co
 
 ## Sections
 
-### oc-csv-download
+### ofi-csv-download
 
 | Key        | Type    | Description                                     |
 | ---------- | ------- | ----------------------------------------------- |
@@ -38,24 +38,25 @@ When set, `slug` is used by `ofi-csv-download` for API requests, `ofi-hledger-co
 | `strategy` | string  | Download strategy: `daily`, `monthly`, `yearly` |
 | `from`     | string  | Default start date (YYYY-MM-DD)                 |
 
-### oc-hledger-convert
+### ofi-hledger-convert
 
-| Key            | Type   | Description                                                                   | Default            |
-| -------------- | ------ | ----------------------------------------------------------------------------- | ------------------ |
-| `input`        | string | CSV file or glob pattern (relative to account dir)                            | `**/*.csv`         |
-| `output`       | string | Journal output file (relative to account dir)                                 | stdout             |
-| `rules`        | string | Rules file path (relative to account dir)                                     | `./rules-base.js`  |
-| `main-account` | string | Override main account handle (defaults to top-level `slug` or directory name) | `slug` or dir name |
-| `fee-format`   | string | `auto`, `rows`, or `columns`                                                  | `auto`             |
-| `from`         | string | Skip rows before this date (YYYY-MM-DD)                                       | —                  |
-| `date-field`   | string | Date column: `transaction` or `effective`                                     | `transaction`      |
+| Key            | Type   | Description                                                                   | Default                  |
+| -------------- | ------ | ----------------------------------------------------------------------------- | ------------------------ |
+| `input`        | string | CSV file or glob pattern (relative to account dir)                            | `**/*.csv`               |
+| `output`       | string | Journal output file (relative to account dir)                                 | `transactions.journal`   |
+| `rules`        | string | Rules file path (relative to account dir)                                     | packaged `rules-base.js` |
+| `main-account` | string | Override main account handle (defaults to top-level `slug` or directory name) | `slug` or dir name       |
+| `fee-format`   | string | `auto`, `rows`, or `columns`                                                  | `auto`                   |
+| `from`         | string | Skip rows before this date (YYYY-MM-DD)                                       | —                        |
+| `to`           | string | Skip rows after this date (YYYY-MM-DD)                                        | —                        |
+| `date-field`   | string | Date column: `transaction` or `effective`                                     | `transaction`            |
 
 The `date-field` option controls which CSV date column is used for journal entries:
 
 - `transaction` — Uses `Date & Time` (transaction creation date, default)
 - `effective` — Uses `Effective Date & Time` (settlement/clearing date)
 
-The `from` option skips CSV rows before the given date. Falls back to `oc-csv-download.from` if not set.
+The `from` and `to` options filter CSV rows by date. Both fall back to `ofi-csv-download.from` and `ofi-csv-download.to` respectively if not set.
 
 ### hledger
 
@@ -71,8 +72,8 @@ The `from` option skips CSV rows before the given date. Falls back to `oc-csv-do
 // ofitech/oc.config.js
 export default {
   slug: 'ofitech',
-  'oc-csv-download': { host: true, strategy: 'monthly', from: '2024-01-01' },
-  'oc-hledger-convert': {
+  'ofi-csv-download': { host: true, strategy: 'monthly', from: '2024-01-01' },
+  'ofi-hledger-convert': {
     output: 'ofitech-host-transactions.journal',
     rules: './rules-ofitech.js',
   },
@@ -85,8 +86,8 @@ export default {
 // ofico/oc.config.js
 export default {
   slug: 'ofico',
-  'oc-csv-download': { host: true, strategy: 'yearly', from: '2024-10-01' },
-  'oc-hledger-convert': {
+  'ofi-csv-download': { host: true, strategy: 'yearly', from: '2024-10-01' },
+  'ofi-hledger-convert': {
     output: 'ofico-host-transactions.journal',
     rules: './rules-ofico.js',
     'date-field': 'transaction',
@@ -100,8 +101,8 @@ export default {
 // webpack/oc.config.js
 export default {
   slug: 'webpack',
-  'oc-csv-download': { strategy: 'monthly', from: '2025-01-01' },
-  'oc-hledger-convert': {
+  'ofi-csv-download': { strategy: 'monthly', from: '2025-01-01' },
+  'ofi-hledger-convert': {
     output: 'webpack-transactions.journal',
   },
 };
@@ -113,8 +114,8 @@ export default {
 // ofitech/oc.config.js
 export default {
   slug: 'ofitech',
-  'oc-csv-download': { host: true },
-  'oc-hledger-convert': {
+  'ofi-csv-download': { host: true },
+  'ofi-hledger-convert': {
     output: 'ofitech-host-transactions.journal',
     rules: './rules-ofitech.js',
   },

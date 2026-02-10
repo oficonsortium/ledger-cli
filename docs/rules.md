@@ -130,7 +130,7 @@ Reference the rules file in `oc.config.js`:
 
 ```js
 export default {
-  'oc-hledger-convert': {
+  'ofi-hledger-convert': {
     rules: './rules-myorg.js',
     // ...
   },

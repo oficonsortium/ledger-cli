@@ -4,13 +4,13 @@ CLI tools to download [OFi / Open Collective](https://opencollective.com/) trans
 
 ## Tools
 
-| Command                                          | Description                                            |
-| ------------------------------------------------ | ------------------------------------------------------ |
-| [`ofi-hledger`](docs/hledger.md)                 | All-in-one: download, convert, and query journals      |
-| [`ofi-csv-download`](docs/csv-download.md)       | Download transaction CSVs from the Open Collective API |
-| [`ofi-hledger-convert`](docs/hledger-convert.md) | Convert CSVs to hledger journal files                  |
-| [`ofi-balance-download`](docs/hledger.md)        | Download opening balances from the API                 |
-| [`ofi-ledger-cli-init`](docs/hledger.md)         | Initialize an account directory                        |
+| Command                                                | Description                                            |
+| ------------------------------------------------------ | ------------------------------------------------------ |
+| [`ofi-hledger`](docs/ofi-hledger.md)                   | All-in-one: download, convert, and query journals      |
+| [`ofi-csv-download`](docs/ofi-csv-download.md)         | Download transaction CSVs from the Open Collective API |
+| [`ofi-hledger-convert`](docs/ofi-hledger-convert.md)   | Convert CSVs to hledger journal files                  |
+| [`ofi-balance-download`](docs/ofi-balance-download.md) | Download opening balances from the API                 |
+| [`ofi-ledger-cli-init`](docs/ofi-ledger-cli-init.md)   | Initialize an account directory                        |
 
 Configuration: [`oc.config.js`](docs/oc-config.md) | Rules: [`rules`](docs/rules.md)
 
@@ -27,10 +27,14 @@ npm install -g @ofi/ledger-cli
 ## Quick start
 
 ```bash
+# Recent data only (recommended for first use)
+ofi-hledger webpack --auto --from 2024-01-01 bs
+
+# All history (downloads from oldest transaction)
 ofi-hledger webpack --auto bs
 ```
 
-This initializes the account directory, downloads transactions and opening balances, converts to a journal, then queries the balance sheet.
+This initializes the account directory, downloads transactions and opening balances, converts to a journal, then queries the balance sheet. Without `--from`, it downloads from the oldest transaction date (set by init in config).
 
 ## Step by step
 

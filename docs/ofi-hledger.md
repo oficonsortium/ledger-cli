@@ -83,6 +83,13 @@ ofi-hledger webpack -a bs
 ofi-hledger webpack --auto --from 2025-01-01 bs
 ```
 
+Without `--from`, downloads from the oldest transaction date (set by init in config), which can be slow for accounts with long histories. Use `--from` to scope the download:
+
+```bash
+# Quarterly report — only download what you need
+ofi-hledger webpack --auto --from 2025-01-01 is -Q
+```
+
 ### Combining flags
 
 Flags can be combined. They run in order: init, download, balances, convert, query.
@@ -104,12 +111,12 @@ If no hledger args are provided and no flags are set, the help text is shown.
 
 `ofi-hledger` reads from two sections in `oc.config.js`:
 
-- `oc-hledger-convert.output` - journal file path (required)
+- `ofi-hledger-convert.output` - journal file path (required)
 - `hledger.args` - default arguments prepended to every query (optional)
 
 ```js
 export default {
-  'oc-hledger-convert': {
+  'ofi-hledger-convert': {
     output: 'ofitech-host-transactions.journal',
     // ...
   },

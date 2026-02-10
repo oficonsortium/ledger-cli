@@ -27,15 +27,16 @@ ofi-hledger-convert ofitech/ -o journal.hledger
 
 ## Options
 
-| Option                    | Description                                  | Default           |
-| ------------------------- | -------------------------------------------- | ----------------- |
-| `-o, --output <file>`     | Output journal file                          | stdout            |
-| `-r, --rules <file>`      | Rules configuration file                     | `./rules-base.js` |
-| `--main-account <handle>` | Main account handle for nesting sub-accounts | directory name    |
-| `--from <date>`           | Skip rows before this date (YYYY-MM-DD)      | config `from`     |
-| `--fee-format <format>`   | `auto`, `rows`, or `columns`                 | `auto`            |
-| `--date-field <field>`    | Date column: `transaction` or `effective`    | `transaction`     |
-| `--stats`                 | Print rule match statistics                  | off               |
+| Option                    | Description                                  | Default                                        |
+| ------------------------- | -------------------------------------------- | ---------------------------------------------- |
+| `-o, --output <file>`     | Output journal file                          | `transactions.journal` (account dir) or stdout |
+| `-r, --rules <file>`      | Rules configuration file                     | packaged `rules-base.js`                       |
+| `--main-account <handle>` | Main account handle for nesting sub-accounts | directory name                                 |
+| `--from <date>`           | Skip rows before this date (YYYY-MM-DD)      | config `from`                                  |
+| `--to <date>`             | Skip rows after this date (YYYY-MM-DD)       | config `to`                                    |
+| `--fee-format <format>`   | `auto`, `rows`, or `columns`                 | `auto`                                         |
+| `--date-field <field>`    | Date column: `transaction` or `effective`    | `transaction`                                  |
+| `--stats`                 | Print rule match statistics                  | off                                            |
 
 When using an account directory with `oc.config.js`, these options are loaded from config. CLI flags always override config values.
 
