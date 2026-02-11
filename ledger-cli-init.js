@@ -25,11 +25,23 @@ import 'dotenv/config';
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { Command } from 'commander';
 
-const GRAPHQL_URL = 'https://api.opencollective.com/graphql/v2';
+const API_URL = process.env.API_URL || 'https://api.opencollective.com';
+
+/**
+ * Build authentication headers from a token string.
+ */
+function buildAuthHeaders(token) {
+  if (!token) {
+    return {};
+  }
+  if (process.env.ACCESS_TOKEN) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return { 'Personal-Token': token };
+}
 
 /**
  * Build a GraphQL query that fetches account info and transaction counts.
@@ -90,11 +102,11 @@ function buildQuery(now) {
 }
 
 async function graphqlRequest(query, variables, token) {
-  const response = await fetch(GRAPHQL_URL, {
+  const response = await fetch(`${API_URL}/graphql/v2`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { 'Personal-Token': token }),
+      ...buildAuthHeaders(token),
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -206,10 +218,15 @@ async function main(argv = process.argv) {
   program.option('--dry-run', 'Print config without writing');
   program.parse(argv);
 
-  const [slug] = program.args;
+  const [arg] = program.args;
   const opts = program.opts();
-  const token = process.env.PERSONAL_TOKEN;
+  const token = process.env.ACCESS_TOKEN || process.env.PERSONAL_TOKEN;
   const now = new Date();
+
+  // If argument is a directory with oc.config.js, use config slug for API query
+  const isDir = fs.existsSync(arg) && fs.statSync(arg).isDirectory();
+  const existingConfig = isDir ? await loadAccountConfig(arg) : null;
+  const slug = existingConfig?.slug || (isDir ? path.basename(arg) : arg);
 
   // Build and execute query
   const { query, variables } = buildQuery(now);
@@ -250,9 +267,9 @@ async function main(argv = process.argv) {
   console.error(`Transactions (${lastMonthLabel}): ${lastMonthCount.toLocaleString()}`);
   console.error(`Transactions (${lastYearLabel}):    ${lastYearCount.toLocaleString()}`);
 
-  // Load existing config
-  const dir = path.resolve(slug);
-  const existing = fs.existsSync(dir) ? await loadAccountConfig(dir) : null;
+  // Use arg for directory path (may differ from API slug)
+  const dir = path.resolve(arg);
+  const existing = existingConfig;
 
   // Pick strategy (existing config wins)
   const computedStrategy = pickStrategy(lastMonthCount, lastYearCount);
@@ -271,7 +288,7 @@ async function main(argv = process.argv) {
   const configContent = serializeConfig(merged);
 
   if (opts.dryRun) {
-    console.error(`\n--- ${slug}/oc.config.js (dry run) ---`);
+    console.error(`\n--- ${arg}/oc.config.js (dry run) ---`);
     console.log(configContent);
     return;
   }
@@ -279,16 +296,20 @@ async function main(argv = process.argv) {
   // Create directory if needed
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
-    console.error(`\nCreated ${slug}/`);
+    console.error(`\nCreated ${arg}/`);
   }
 
   const configPath = path.join(dir, 'oc.config.js');
-  fs.writeFileSync(configPath, configContent);
 
-  if (existing) {
-    console.error(`\nUpdated ${slug}/oc.config.js (filled missing defaults)`);
+  if (existing && JSON.stringify(existing) === JSON.stringify(merged)) {
+    console.error(`\n${arg}/oc.config.js is up to date`);
   } else {
-    console.error(`\nWrote ${slug}/oc.config.js`);
+    fs.writeFileSync(configPath, configContent);
+    if (existing) {
+      console.error(`\nUpdated ${arg}/oc.config.js (filled missing defaults)`);
+    } else {
+      console.error(`\nWrote ${arg}/oc.config.js`);
+    }
   }
 
   if (defaults['ofi-csv-download']?.from) {
@@ -297,11 +318,9 @@ async function main(argv = process.argv) {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main().catch((e) => {
-    if (e.name !== 'CommanderError') {
-      console.error(e.message);
-      process.exit(1);
-    }
-  });
-}
+main().catch((e) => {
+  if (e.name !== 'CommanderError') {
+    console.error(e.message);
+    process.exit(1);
+  }
+});
