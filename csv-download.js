@@ -391,6 +391,15 @@ async function fetchCsv(slug, date, isHost, token, options = {}) {
   return response.text();
 }
 
+/**
+ * Count data rows (excluding header) in a CSV file.
+ */
+function countCsvRows(filePath) {
+  const content = fs.readFileSync(filePath, 'utf8');
+  const lines = content.trim().split('\n');
+  return lines.length - 1;
+}
+
 // =============================================================================
 // Download Logic
 // =============================================================================
@@ -819,9 +828,19 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
           stats.skipped++;
           continue;
         } else if (hasPagedFiles) {
-          // Paginated files exist - need HEAD to verify completeness
-          const totalCount = await fetchCount(slug, date, isHost, token);
+          // Paginated files exist - check if last page is partial (< PAGE_LIMIT rows)
           const existingPages = countExistingPages(slug, date);
+          const lastPageRows = countCsvRows(buildFilePath(slug, date, existingPages));
+
+          if (lastPageRows < PAGE_LIMIT) {
+            // Last page is partial → pagination is complete
+            console.log(`  [SKIP] ${dateStr} - ${existingPages} file(s) complete`);
+            stats.skipped++;
+            continue;
+          }
+
+          // Last page is full → ambiguous, verify with HEAD request
+          const totalCount = await fetchCount(slug, date, isHost, token);
           const expectedPages = Math.ceil(totalCount / PAGE_LIMIT);
 
           if (existingPages >= expectedPages) {
@@ -920,8 +939,16 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
           stats.skipped++;
           continue;
         } else if (hasPagedFiles) {
-          const totalCount = await fetchMonthCount(slug, month, isHost, token);
           const existingPages = countExistingMonthPages(slug, month.start);
+          const lastPageRows = countCsvRows(buildMonthlyFilePath(slug, month.start, existingPages));
+
+          if (lastPageRows < PAGE_LIMIT) {
+            console.log(`  [SKIP] ${monthStr} - ${existingPages} file(s) complete`);
+            stats.skipped++;
+            continue;
+          }
+
+          const totalCount = await fetchMonthCount(slug, month, isHost, token);
           const expectedPages = Math.ceil(totalCount / PAGE_LIMIT);
 
           if (existingPages >= expectedPages) {
@@ -1018,8 +1045,16 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
           stats.skipped++;
           continue;
         } else if (hasPagedFiles) {
-          const totalCount = await fetchYearCount(slug, year, isHost, token);
           const existingPages = countExistingYearPages(slug, year.start);
+          const lastPageRows = countCsvRows(buildYearlyFilePath(slug, year.start, existingPages));
+
+          if (lastPageRows < PAGE_LIMIT) {
+            console.log(`  [SKIP] ${yearStr} - ${existingPages} file(s) complete`);
+            stats.skipped++;
+            continue;
+          }
+
+          const totalCount = await fetchYearCount(slug, year, isHost, token);
           const expectedPages = Math.ceil(totalCount / PAGE_LIMIT);
 
           if (existingPages >= expectedPages) {
