@@ -37,6 +37,7 @@ program.option('--to <date>', 'Download end date (YYYY-MM-DD), forwarded to ofi-
 program.option('--balances', 'Fetch opening balances before querying');
 program.option('-c, --convert', 'Re-generate journal from CSVs before querying');
 program.option('-a, --auto', 'Shortcut for --init --download --balances --convert');
+program.option('--rate-limit <n>', 'Max requests per minute, forwarded to download commands', parseInt);
 
 program.allowUnknownOption();
 
@@ -49,7 +50,7 @@ Examples:
   ofi-hledger ofitech bs
   ofi-hledger ofico is --depth 2
   ofi-hledger ofitech bs --download --convert
-  ofi-hledger webpack --auto bs
+  ofi-hledger babel --auto bs
   ofi-hledger raft is --alias '/^(revenues|expenses):(operating|collectives:[^:]+):(.*)$/=\\1:\\3'
 `,
 );
@@ -96,6 +97,9 @@ if (opts.download) {
   if (opts.to) {
     downloadArgs.push('--to', opts.to);
   }
+  if (opts.rateLimit) {
+    downloadArgs.push('--rate-limit', String(opts.rateLimit));
+  }
   console.error(`> ofi-csv-download ${downloadArgs.slice(1).join(' ')}`);
   execFileSync('node', downloadArgs, { stdio: 'inherit' });
 }
@@ -105,6 +109,9 @@ if (opts.balances) {
   const balancesArgs = [balancesScript, accountDir];
   if (opts.from) {
     balancesArgs.push('--date', opts.from);
+  }
+  if (opts.rateLimit) {
+    balancesArgs.push('--rate-limit', String(opts.rateLimit));
   }
   console.error(`> ofi-balance-download ${balancesArgs.slice(1).join(' ')}`);
   execFileSync('node', balancesArgs, { stdio: 'inherit' });

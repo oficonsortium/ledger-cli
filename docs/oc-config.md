@@ -32,11 +32,12 @@ When set, `slug` is used by `ofi-csv-download` for API requests, `ofi-hledger-co
 
 ### ofi-csv-download
 
-| Key        | Type    | Description                                     |
-| ---------- | ------- | ----------------------------------------------- |
-| `host`     | boolean | Use `hostTransactions` endpoint                 |
-| `strategy` | string  | Download strategy: `daily`, `monthly`, `yearly` |
-| `from`     | string  | Default start date (YYYY-MM-DD)                 |
+| Key          | Type    | Description                                                      |
+| ------------ | ------- | ---------------------------------------------------------------- |
+| `host`       | boolean | Use `hostTransactions` endpoint                                  |
+| `strategy`   | string  | Download strategy: `daily`, `monthly`, `yearly`                  |
+| `from`       | string  | Default start date (YYYY-MM-DD)                                  |
+| `rate-limit` | number  | Max requests per minute (default: `60` with token, `10` without) |
 
 ### ofi-hledger-convert
 

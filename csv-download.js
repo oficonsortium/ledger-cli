@@ -573,7 +573,7 @@ function deleteExistingYearFiles(slug, date) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadYearTransactions(slug, year, options) {
-  const { token, isHost } = options;
+  const { token, isHost, delayMs } = options;
 
   // Get total count first
   const totalCount = await fetchYearCount(slug, year, isHost, token);
@@ -632,7 +632,7 @@ async function downloadYearTransactions(slug, year, options) {
     }
 
     if (page < pageCount) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
@@ -644,7 +644,7 @@ async function downloadYearTransactions(slug, year, options) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadMonthTransactions(slug, month, options) {
-  const { token, isHost } = options;
+  const { token, isHost, delayMs } = options;
 
   // Get total count first
   const totalCount = await fetchMonthCount(slug, month, isHost, token);
@@ -703,7 +703,7 @@ async function downloadMonthTransactions(slug, month, options) {
     }
 
     if (page < pageCount) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
@@ -715,7 +715,7 @@ async function downloadMonthTransactions(slug, month, options) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadDateTransactions(slug, date, options) {
-  const { token, isHost } = options;
+  const { token, isHost, delayMs } = options;
   const dateStr = formatDate(date);
 
   // Get total count first
@@ -774,7 +774,7 @@ async function downloadDateTransactions(slug, date, options) {
 
     // Small delay between pages to avoid rate limiting
     if (page < pageCount) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
@@ -785,7 +785,7 @@ async function downloadDateTransactions(slug, date, options) {
  * Download transactions for a date range using daily strategy.
  */
 async function downloadTransactionsDaily(slug, startDate, endDate, options) {
-  const { token, isHost, replace, dryRun } = options;
+  const { token, isHost, replace, dryRun, delayMs } = options;
 
   const dates = generateDateRange(startDate, endDate);
   const stats = {
@@ -857,7 +857,7 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
       }
 
       // Small delay between days to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     } catch (error) {
       console.error(`  [ERROR] ${dateStr} - ${error.message}`);
       stats.errors++;
@@ -888,7 +888,7 @@ function monthIncludesToday(month) {
  * Download transactions for a date range using monthly strategy.
  */
 async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
-  const { token, isHost, replace, dryRun } = options;
+  const { token, isHost, replace, dryRun, delayMs } = options;
 
   const months = generateMonthRange(startDate, endDate);
   const stats = {
@@ -957,7 +957,7 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
       }
 
       // Small delay between months to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     } catch (error) {
       console.error(`  [ERROR] ${monthStr} - ${error.message}`);
       stats.errors++;
@@ -986,7 +986,7 @@ function yearIncludesToday(year) {
  * Download transactions for a date range using yearly strategy.
  */
 async function downloadTransactionsYearly(slug, startDate, endDate, options) {
-  const { token, isHost, replace, dryRun } = options;
+  const { token, isHost, replace, dryRun, delayMs } = options;
 
   const years = generateYearRange(startDate, endDate);
   const stats = {
@@ -1055,7 +1055,7 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
       }
 
       // Small delay between years to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     } catch (error) {
       console.error(`  [ERROR] ${yearStr} - ${error.message}`);
       stats.errors++;
@@ -1119,6 +1119,7 @@ const getProgram = (argv) => {
   program.option('--strategy <strategy>', 'Download strategy: daily, monthly (default), yearly');
   program.option('--replace', 'Replace existing files', false);
   program.option('--dry-run', 'Show what would be downloaded without downloading', false);
+  program.option('--rate-limit <n>', 'Max requests per minute (default: 60 with token, 10 without)', parseInt);
 
   program.addHelpText(
     'after',
@@ -1160,6 +1161,9 @@ Examples:
 
   # Replace existing files
   ofi-csv-download ofitech --host --replace
+
+  # Slow down to 5 requests per minute
+  ofi-csv-download babel --rate-limit 5
 `,
   );
 
@@ -1215,6 +1219,11 @@ async function main(argv = process.argv) {
   // Get token from environment (optional, allows access to private data)
   const token = process.env.PERSONAL_TOKEN;
 
+  const defaultRateLimit = token ? 60 : 10;
+  const rateLimit = Number(resolve('rateLimit', 'rate-limit', defaultRateLimit));
+  const delayMs = Math.ceil(60000 / rateLimit);
+  console.log(`Rate limit: ${rateLimit} req/min`);
+
   // Determine date range (default end date is today, since today auto-replaces)
   const endDate = options.to ? parseDate(options.to) : getToday();
 
@@ -1244,6 +1253,7 @@ async function main(argv = process.argv) {
     replace: options.replace,
     dryRun: options.dryRun,
     strategy,
+    delayMs,
   });
 
   // Print summary
