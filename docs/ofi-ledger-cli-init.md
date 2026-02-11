@@ -15,7 +15,7 @@ ofi-ledger-cli-init <slug> [options]
 ```bash
 ofi-ledger-cli-init ofitech
 ofi-ledger-cli-init phpfoundation
-ofi-ledger-cli-init webpack --dry-run
+ofi-ledger-cli-init babel --dry-run
 ```
 
 ## Options

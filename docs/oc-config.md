@@ -98,12 +98,12 @@ export default {
 ### Single collective
 
 ```js
-// webpack/oc.config.js
+// babel/oc.config.js
 export default {
-  slug: 'webpack',
+  slug: 'babel',
   'ofi-csv-download': { strategy: 'monthly', from: '2025-01-01' },
   'ofi-hledger-convert': {
-    output: 'webpack-transactions.journal',
+    output: 'babel-transactions.journal',
   },
 };
 ```

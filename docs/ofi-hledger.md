@@ -35,8 +35,8 @@ ofi-hledger ofitech reg tag:payee=stripe
 Initialize the account directory by running `ofi-ledger-cli-init`. Creates `oc.config.js` from the Open Collective GraphQL API. Fills missing config values without overwriting existing ones.
 
 ```bash
-ofi-hledger webpack --init
-ofi-hledger webpack -i -d -c bs
+ofi-hledger babel --init
+ofi-hledger babel -i -d -c bs
 ```
 
 ### `--download` / `-d`
@@ -53,8 +53,8 @@ ofi-hledger ofitech bs -d
 Date range forwarded to `ofi-csv-download` (with `--download`), `ofi-balance-download` (with `--balances`, `--from` is used as `--date`), and `ofi-hledger-convert` (with `--convert`, `--from` filters rows before the date).
 
 ```bash
-ofi-hledger webpack -d --from 2025-01-01
-ofi-hledger webpack -d --from 2025-01-01 --to 2025-12-31
+ofi-hledger babel -d --from 2025-01-01
+ofi-hledger babel -d --from 2025-01-01 --to 2025-12-31
 ```
 
 ### `--balances`
@@ -62,7 +62,7 @@ ofi-hledger webpack -d --from 2025-01-01 --to 2025-12-31
 Fetch account balances from the Open Collective GraphQL API before querying. Runs `ofi-balance-download <account-dir>`. Uses `--from` as the balance date if provided.
 
 ```bash
-ofi-hledger webpack --balances --from 2025-01-01
+ofi-hledger babel --balances --from 2025-01-01
 ```
 
 ### `--convert` / `-c`
@@ -79,15 +79,15 @@ ofi-hledger ofitech is -c
 Shortcut for `--init --download --balances --convert`. Runs the full pipeline: init, download, balances, convert, then query.
 
 ```bash
-ofi-hledger webpack -a bs
-ofi-hledger webpack --auto --from 2025-01-01 bs
+ofi-hledger babel -a bs
+ofi-hledger babel --auto --from 2025-01-01 bs
 ```
 
 Without `--from`, downloads from the oldest transaction date (set by init in config), which can be slow for accounts with long histories. Use `--from` to scope the download:
 
 ```bash
 # Quarterly report — only download what you need
-ofi-hledger webpack --auto --from 2025-01-01 is -Q
+ofi-hledger babel --auto --from 2025-01-01 is -Q
 ```
 
 ### Combining flags
@@ -99,10 +99,10 @@ Flags can be combined. They run in order: init, download, balances, convert, que
 ofi-hledger ofitech bs -d -c
 
 # Full pipeline (equivalent to --auto)
-ofi-hledger webpack -i -d --balances --from 2025-01-01 -c bs
+ofi-hledger babel -i -d --balances --from 2025-01-01 -c bs
 
 # Download only (no hledger query)
-ofi-hledger webpack -d --from 2025-01-01
+ofi-hledger babel -d --from 2025-01-01
 ```
 
 If no hledger args are provided and no flags are set, the help text is shown.

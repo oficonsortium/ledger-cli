@@ -16,7 +16,7 @@ The argument can be an account directory with `oc.config.js` or a slug used with
 
 ```bash
 # Account directory (reads host and from date from oc.config.js)
-ofi-balance-download webpack
+ofi-balance-download babel
 ofi-balance-download raft --date 2025-06-01
 
 # Explicit host mode
@@ -44,7 +44,7 @@ When using an account directory with `oc.config.js`, `host` is read from `ofi-cs
 Without `--host`, fetches the balance for one account and its children (events, projects). Only children with non-zero balances are included.
 
 ```bash
-ofi-balance-download webpack --date 2025-01-01
+ofi-balance-download babel --date 2025-01-01
 ```
 
 ### Fiscal host

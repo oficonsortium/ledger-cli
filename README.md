@@ -28,10 +28,10 @@ npm install -g @ofi/ledger-cli
 
 ```bash
 # Recent data only (recommended for first use)
-ofi-hledger webpack --auto --from 2024-01-01 bs
+ofi-hledger eslint --auto --from 2024-01-01 bs
 
 # All history (downloads from oldest transaction)
-ofi-hledger webpack --auto bs
+ofi-hledger eslint --auto bs
 ```
 
 This initializes the account directory, downloads transactions and opening balances, converts to a journal, then queries the balance sheet. Without `--from`, it downloads from the oldest transaction date (set by init in config).
@@ -41,32 +41,32 @@ This initializes the account directory, downloads transactions and opening balan
 Each account lives in its own directory with an `oc.config.js`:
 
 ```
-webpack/
+eslint/
   oc.config.js
-  rules-webpack.js          # optional custom rules
-  webpack-opening-balances.csv
+  rules-eslint.js          # optional custom rules
+  eslint-opening-balances.csv
   2025/
   2026/
-  webpack-transactions.journal
+  eslint-transactions.journal
 ```
 
 ### 1. Download transactions
 
 ```bash
-ofi-csv-download webpack
+ofi-csv-download eslint
 ```
 
 ### 2. Convert to journal
 
 ```bash
-ofi-hledger-convert webpack
+ofi-hledger-convert eslint
 ```
 
 ### 3. Query
 
 ```bash
-ofi-hledger webpack bs    # Balance sheet
-ofi-hledger webpack is    # Income statement
+ofi-hledger eslint bs    # Balance sheet
+ofi-hledger eslint is    # Income statement
 ```
 
 ### Batch processing
