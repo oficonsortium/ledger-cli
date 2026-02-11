@@ -37,21 +37,25 @@ program.option('--to <date>', 'Download end date (YYYY-MM-DD), forwarded to ofi-
 program.option('--balances', 'Fetch opening balances before querying');
 program.option('-c, --convert', 'Re-generate journal from CSVs before querying');
 program.option('-a, --auto', 'Shortcut for --init --download --balances --convert');
+program.option('--replace', 'Replace existing files, forwarded to download commands', false);
+program.option('--page-limit <n>', 'Max transactions per file/request, forwarded to ofi-csv-download', parseInt);
 program.option('--rate-limit <n>', 'Max requests per minute, forwarded to download commands', parseInt);
 
-program.allowUnknownOption();
+program.enablePositionalOptions();
+program.passThroughOptions();
 
 program.addHelpText(
   'after',
   `
-All other options are passed through to hledger.
+All arguments after <account-dir> are passed through to hledger.
+Place ofi-hledger options BEFORE <account-dir>.
 
 Examples:
   ofi-hledger ofitech bs
   ofi-hledger ofico is --depth 2
-  ofi-hledger ofitech bs --download --convert
-  ofi-hledger babel --auto bs
-  ofi-hledger raft is --alias '/^(revenues|expenses):(operating|collectives:[^:]+):(.*)$/=\\1:\\3'
+  ofi-hledger --download --convert ofitech bs
+  ofi-hledger --auto babel bs
+  ofi-hledger --auto --from 2025-01-01 raft is
 `,
 );
 
@@ -97,6 +101,12 @@ if (opts.download) {
   if (opts.to) {
     downloadArgs.push('--to', opts.to);
   }
+  if (opts.replace) {
+    downloadArgs.push('--replace');
+  }
+  if (opts.pageLimit) {
+    downloadArgs.push('--page-limit', String(opts.pageLimit));
+  }
   if (opts.rateLimit) {
     downloadArgs.push('--rate-limit', String(opts.rateLimit));
   }
@@ -109,6 +119,9 @@ if (opts.balances) {
   const balancesArgs = [balancesScript, accountDir];
   if (opts.from) {
     balancesArgs.push('--date', opts.from);
+  }
+  if (opts.replace) {
+    balancesArgs.push('--replace');
   }
   if (opts.rateLimit) {
     balancesArgs.push('--rate-limit', String(opts.rateLimit));
