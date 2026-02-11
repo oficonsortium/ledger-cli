@@ -1508,16 +1508,14 @@ async function main(argv = process.argv) {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main()
-    .then(() => process.exit())
-    .catch((e) => {
-      if (e.name !== 'CommanderError') {
-        console.error(e);
-      }
-      process.exit(1);
-    });
-}
+main()
+  .then(() => process.exit())
+  .catch((e) => {
+    if (e.name !== 'CommanderError') {
+      console.error(e);
+    }
+    process.exit(1);
+  });
 
 export {
   // File input
