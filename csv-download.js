@@ -26,7 +26,6 @@ import 'dotenv/config';
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { Command } from 'commander';
 
@@ -34,47 +33,79 @@ import { Command } from 'commander';
 // Configuration
 // =============================================================================
 
-const REST_BASE_URL = 'https://rest.opencollective.com/v2';
+const REST_URL = process.env.REST_URL || 'https://rest.opencollective.com';
 
-// CSV fields to request (stored as a clean object, rebuilt into URL when needed)
-const CSV_FIELDS = [
-  'datetime',
-  'effectiveDate',
-  'legacyId',
-  'description',
-  'type',
-  'kind',
-  'group',
-  'netAmount',
-  'currency',
-  'isReverse',
-  'isReversed',
-  'reverseLegacyId',
-  'accountSlug',
-  'accountName',
-  'oppositeAccountSlug',
-  'oppositeAccountName',
-  'paymentMethodService',
-  'paymentMethodType',
-  'orderMemo',
-  'expenseType',
-  'expenseTags',
-  'payoutMethodType',
-  'accountingCategoryCode',
-  'accountingCategoryName',
-  'merchantId',
-  'reverseKind',
-  'accountType',
-  'oppositeAccountType',
-  'parentAccountSlug',
-  'parentAccountType',
-  'oppositeParentAccountSlug',
-  'oppositeParentAccountType',
-  'paymentProcessorFee',
-  'taxAmount',
-  'hostFee',
-  'platformFee',
-];
+// Field set presets
+const FIELD_SETS = {
+  default: [
+    'datetime',
+    'effectiveDate',
+    'legacyId',
+    'description',
+    'type',
+    'kind',
+    'group',
+    'netAmount',
+    'currency',
+    'isReverse',
+    'isReversed',
+    'reverseLegacyId',
+    'accountSlug',
+    'accountName',
+    'oppositeAccountSlug',
+    'oppositeAccountName',
+    'paymentMethodService',
+    'paymentMethodType',
+    'orderMemo',
+    'expenseType',
+    'expenseTags',
+    'payoutMethodType',
+    'accountingCategoryCode',
+    'accountingCategoryName',
+    'merchantId',
+    'reverseKind',
+    'accountType',
+    'oppositeAccountType',
+    'parentAccountSlug',
+    'parentAccountType',
+    'oppositeParentAccountSlug',
+    'oppositeParentAccountType',
+    'paymentProcessorFee',
+    'taxAmount',
+    'hostFee',
+    'platformFee',
+  ],
+  'platform-default': [
+    'effectiveDate',
+    'legacyId',
+    'description',
+    'type',
+    'kind',
+    'group',
+    'netAmount',
+    'currency',
+    'isReverse',
+    'isReversed',
+    'reverseLegacyId',
+    'accountSlug',
+    'accountName',
+    'oppositeAccountSlug',
+    'oppositeAccountName',
+    'paymentMethodService',
+    'paymentMethodType',
+    'orderMemo',
+    'expenseType',
+    'expenseTags',
+    'payoutMethodType',
+    'accountingCategoryCode',
+    'accountingCategoryName',
+    'merchantId',
+    'reverseKind',
+  ],
+};
+
+// Kept for backward compat export
+const CSV_FIELDS = FIELD_SETS.default;
 
 // Default query parameters
 const DEFAULT_PARAMS = {
@@ -82,12 +113,34 @@ const DEFAULT_PARAMS = {
   includeIncognitoTransactions: '1',
   includeChildrenTransactions: '1',
   useFieldNames: '1',
+  flattenTaxesAndPaymentProcessorFees: '1',
   'orderBy[field]': 'createdAt',
   'orderBy[direction]': 'ASC',
 };
 
+// Per-preset parameter overrides
+const FIELD_SET_PARAMS = {
+  'platform-default': {
+    flattenTaxesAndPaymentProcessorFees: '0',
+  },
+};
+
+/**
+ * Build authentication headers from a token string.
+ * ACCESS_TOKEN uses Authorization: Bearer, PERSONAL_TOKEN uses PersonalToken.
+ */
+function buildAuthHeaders(token) {
+  if (!token) {
+    return {};
+  }
+  if (process.env.ACCESS_TOKEN) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return { 'Personal-Token': token };
+}
+
 // Pagination settings
-const PAGE_LIMIT = 1000;
+const DEFAULT_PAGE_LIMIT = 1000;
 
 // =============================================================================
 // Date Utilities
@@ -293,10 +346,11 @@ function fileExists(filePath) {
  */
 function buildRestUrl(slug, date, isHost, options = {}) {
   const endpoint = isHost ? 'hostTransactions.csv' : 'transactions.csv';
-  const url = new URL(`${REST_BASE_URL}/${slug}/${endpoint}`);
+  const url = new URL(`${REST_URL}/v2/${slug}/${endpoint}`);
 
-  // Add default parameters
-  for (const [key, value] of Object.entries(DEFAULT_PARAMS)) {
+  // Add default parameters, then preset overrides
+  const params = { ...DEFAULT_PARAMS, ...FIELD_SET_PARAMS[options.fieldSet] };
+  for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
 
@@ -309,7 +363,8 @@ function buildRestUrl(slug, date, isHost, options = {}) {
   }
 
   // Add fields
-  url.searchParams.set('fields', CSV_FIELDS.join(','));
+  const fields = FIELD_SETS[options.fieldSet] || FIELD_SETS.default;
+  url.searchParams.set('fields', fields.join(','));
 
   // Add date range
   if (options.dateFrom && options.dateTo) {
@@ -341,13 +396,13 @@ function buildRestUrl(slug, date, isHost, options = {}) {
  * Fetch the total count of transactions for a specific date using HEAD request.
  * @returns {Promise<number>} Total count from X-Exported-Rows header
  */
-async function fetchCount(slug, date, isHost, token) {
-  const url = buildRestUrl(slug, date, isHost);
+async function fetchCount(slug, date, isHost, token, { fieldSet } = {}) {
+  const url = buildRestUrl(slug, date, isHost, { fieldSet });
 
   const response = await fetch(url, {
     method: 'HEAD',
     headers: {
-      ...(token && { PersonalToken: token }),
+      ...buildAuthHeaders(token),
     },
   });
 
@@ -375,11 +430,12 @@ async function fetchCsv(slug, date, isHost, token, options = {}) {
     offset: options.offset,
     dateFrom: options.dateFrom,
     dateTo: options.dateTo,
+    fieldSet: options.fieldSet,
   });
 
   const response = await fetch(url, {
     headers: {
-      ...(token && { PersonalToken: token }),
+      ...buildAuthHeaders(token),
     },
   });
 
@@ -423,8 +479,8 @@ function countExistingPages(slug, date) {
 /**
  * Check if all pages exist for a given total count.
  */
-function allPagesExist(slug, date, totalCount) {
-  const expectedPages = Math.ceil(totalCount / PAGE_LIMIT);
+function allPagesExist(slug, date, totalCount, pageLimit = DEFAULT_PAGE_LIMIT) {
+  const expectedPages = Math.ceil(totalCount / pageLimit);
   if (expectedPages <= 1) {
     // Single page day - check non-paginated file
     return fileExists(buildFilePath(slug, date));
@@ -458,13 +514,13 @@ function deleteExistingFiles(slug, date) {
  * Fetch the total count of transactions for a month range using HEAD request.
  * @returns {Promise<number>} Total count from X-Exported-Rows header
  */
-async function fetchMonthCount(slug, month, isHost, token) {
-  const url = buildRestUrl(slug, month.start, isHost, { dateFrom: month.start, dateTo: month.end });
+async function fetchMonthCount(slug, month, isHost, token, { fieldSet } = {}) {
+  const url = buildRestUrl(slug, month.start, isHost, { dateFrom: month.start, dateTo: month.end, fieldSet });
 
   const response = await fetch(url, {
     method: 'HEAD',
     headers: {
-      ...(token && { PersonalToken: token }),
+      ...buildAuthHeaders(token),
     },
   });
 
@@ -494,8 +550,8 @@ function countExistingMonthPages(slug, date) {
 /**
  * Check if all pages exist for a given month total count.
  */
-function allMonthPagesExist(slug, date, totalCount) {
-  const expectedPages = Math.ceil(totalCount / PAGE_LIMIT);
+function allMonthPagesExist(slug, date, totalCount, pageLimit = DEFAULT_PAGE_LIMIT) {
+  const expectedPages = Math.ceil(totalCount / pageLimit);
   if (expectedPages <= 1) {
     return fileExists(buildMonthlyFilePath(slug, date));
   }
@@ -525,13 +581,13 @@ function deleteExistingMonthFiles(slug, date) {
  * Fetch the total count of transactions for a year range using HEAD request.
  * @returns {Promise<number>} Total count from X-Exported-Rows header
  */
-async function fetchYearCount(slug, year, isHost, token) {
-  const url = buildRestUrl(slug, year.start, isHost, { dateFrom: year.start, dateTo: year.end });
+async function fetchYearCount(slug, year, isHost, token, { fieldSet } = {}) {
+  const url = buildRestUrl(slug, year.start, isHost, { dateFrom: year.start, dateTo: year.end, fieldSet });
 
   const response = await fetch(url, {
     method: 'HEAD',
     headers: {
-      ...(token && { PersonalToken: token }),
+      ...buildAuthHeaders(token),
     },
   });
 
@@ -582,31 +638,32 @@ function deleteExistingYearFiles(slug, date) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadYearTransactions(slug, year, options) {
-  const { token, isHost, delayMs } = options;
+  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet } = options;
 
   // Get total count first
-  const totalCount = await fetchYearCount(slug, year, isHost, token);
+  const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet });
 
   if (totalCount === 0) {
     return { downloaded: 0, empty: true, error: null };
   }
 
-  const pageCount = Math.ceil(totalCount / PAGE_LIMIT);
+  const pageCount = Math.ceil(totalCount / pageLimit);
   let downloadedFiles = 0;
 
   // Delete existing files before downloading
-  deleteExistingYearFiles(slug, year.start);
+  deleteExistingYearFiles(accountDir, year.start);
 
   for (let page = 1; page <= pageCount; page++) {
-    const offset = (page - 1) * PAGE_LIMIT;
+    const offset = (page - 1) * pageLimit;
     const filePath =
-      pageCount === 1 ? buildYearlyFilePath(slug, year.start) : buildYearlyFilePath(slug, year.start, page);
+      pageCount === 1 ? buildYearlyFilePath(accountDir, year.start) : buildYearlyFilePath(accountDir, year.start, page);
 
     let csvContent = await fetchCsv(slug, year.start, isHost, token, {
-      limit: PAGE_LIMIT,
+      limit: pageLimit,
       offset,
       dateFrom: year.start,
       dateTo: year.end,
+      fieldSet,
     });
 
     // Check for API error appended to response
@@ -627,7 +684,7 @@ async function downloadYearTransactions(slug, year, options) {
     }
 
     const rowCount = lines.length - 1;
-    const expectedRows = Math.min(PAGE_LIMIT, totalCount - offset);
+    const expectedRows = Math.min(pageLimit, totalCount - offset);
 
     if (rowCount !== expectedRows) {
       console.warn(`    WARNING: Page ${page} has ${rowCount} rows, expected ${expectedRows}`);
@@ -653,31 +710,34 @@ async function downloadYearTransactions(slug, year, options) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadMonthTransactions(slug, month, options) {
-  const { token, isHost, delayMs } = options;
+  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet } = options;
 
   // Get total count first
-  const totalCount = await fetchMonthCount(slug, month, isHost, token);
+  const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet });
 
   if (totalCount === 0) {
     return { downloaded: 0, empty: true, error: null };
   }
 
-  const pageCount = Math.ceil(totalCount / PAGE_LIMIT);
+  const pageCount = Math.ceil(totalCount / pageLimit);
   let downloadedFiles = 0;
 
   // Delete existing files before downloading
-  deleteExistingMonthFiles(slug, month.start);
+  deleteExistingMonthFiles(accountDir, month.start);
 
   for (let page = 1; page <= pageCount; page++) {
-    const offset = (page - 1) * PAGE_LIMIT;
+    const offset = (page - 1) * pageLimit;
     const filePath =
-      pageCount === 1 ? buildMonthlyFilePath(slug, month.start) : buildMonthlyFilePath(slug, month.start, page);
+      pageCount === 1
+        ? buildMonthlyFilePath(accountDir, month.start)
+        : buildMonthlyFilePath(accountDir, month.start, page);
 
     let csvContent = await fetchCsv(slug, month.start, isHost, token, {
-      limit: PAGE_LIMIT,
+      limit: pageLimit,
       offset,
       dateFrom: month.start,
       dateTo: month.end,
+      fieldSet,
     });
 
     // Check for API error appended to response
@@ -698,7 +758,7 @@ async function downloadMonthTransactions(slug, month, options) {
     }
 
     const rowCount = lines.length - 1;
-    const expectedRows = Math.min(PAGE_LIMIT, totalCount - offset);
+    const expectedRows = Math.min(pageLimit, totalCount - offset);
 
     if (rowCount !== expectedRows) {
       console.warn(`    WARNING: Page ${page} has ${rowCount} rows, expected ${expectedRows}`);
@@ -724,29 +784,30 @@ async function downloadMonthTransactions(slug, month, options) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadDateTransactions(slug, date, options) {
-  const { token, isHost, delayMs } = options;
+  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet } = options;
   const dateStr = formatDate(date);
 
   // Get total count first
-  const totalCount = await fetchCount(slug, date, isHost, token);
+  const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet });
 
   if (totalCount === 0) {
     return { downloaded: 0, empty: true, error: null };
   }
 
-  const pageCount = Math.ceil(totalCount / PAGE_LIMIT);
+  const pageCount = Math.ceil(totalCount / pageLimit);
   let downloadedFiles = 0;
 
   // Delete existing files before downloading (to handle count changes)
-  deleteExistingFiles(slug, date);
+  deleteExistingFiles(accountDir, date);
 
   for (let page = 1; page <= pageCount; page++) {
-    const offset = (page - 1) * PAGE_LIMIT;
-    const filePath = pageCount === 1 ? buildFilePath(slug, date) : buildFilePath(slug, date, page);
+    const offset = (page - 1) * pageLimit;
+    const filePath = pageCount === 1 ? buildFilePath(accountDir, date) : buildFilePath(accountDir, date, page);
 
     let csvContent = await fetchCsv(slug, date, isHost, token, {
-      limit: PAGE_LIMIT,
+      limit: pageLimit,
       offset,
+      fieldSet,
     });
 
     // Check for API error appended to response (happens when API fails mid-stream)
@@ -767,7 +828,7 @@ async function downloadDateTransactions(slug, date, options) {
     }
 
     const rowCount = lines.length - 1; // Exclude header
-    const expectedRows = Math.min(PAGE_LIMIT, totalCount - offset);
+    const expectedRows = Math.min(pageLimit, totalCount - offset);
 
     if (rowCount !== expectedRows) {
       console.warn(`    WARNING: Page ${page} has ${rowCount} rows, expected ${expectedRows}`);
@@ -794,7 +855,16 @@ async function downloadDateTransactions(slug, date, options) {
  * Download transactions for a date range using daily strategy.
  */
 async function downloadTransactionsDaily(slug, startDate, endDate, options) {
-  const { token, isHost, replace, dryRun, delayMs } = options;
+  const {
+    token,
+    isHost,
+    replace,
+    dryRun,
+    delayMs,
+    accountDir = slug,
+    pageLimit = DEFAULT_PAGE_LIMIT,
+    fieldSet,
+  } = options;
 
   const dates = generateDateRange(startDate, endDate);
   const stats = {
@@ -817,9 +887,9 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
 
     try {
       // Check existing files - skip logic depends on file type
-      const singleFilePath = buildFilePath(slug, date);
+      const singleFilePath = buildFilePath(accountDir, date);
       const hasSingleFile = fileExists(singleFilePath);
-      const hasPagedFiles = fileExists(buildFilePath(slug, date, 1));
+      const hasPagedFiles = fileExists(buildFilePath(accountDir, date, 1));
 
       if (!replace && !isTodayDate) {
         if (hasSingleFile) {
@@ -828,11 +898,11 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
           stats.skipped++;
           continue;
         } else if (hasPagedFiles) {
-          // Paginated files exist - check if last page is partial (< PAGE_LIMIT rows)
-          const existingPages = countExistingPages(slug, date);
-          const lastPageRows = countCsvRows(buildFilePath(slug, date, existingPages));
+          // Paginated files exist - check if last page is partial (< pageLimit rows)
+          const existingPages = countExistingPages(accountDir, date);
+          const lastPageRows = countCsvRows(buildFilePath(accountDir, date, existingPages));
 
-          if (lastPageRows < PAGE_LIMIT) {
+          if (lastPageRows < pageLimit) {
             // Last page is partial → pagination is complete
             console.log(`  [SKIP] ${dateStr} - ${existingPages} file(s) complete`);
             stats.skipped++;
@@ -840,8 +910,8 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
           }
 
           // Last page is full → ambiguous, verify with HEAD request
-          const totalCount = await fetchCount(slug, date, isHost, token);
-          const expectedPages = Math.ceil(totalCount / PAGE_LIMIT);
+          const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet });
+          const expectedPages = Math.ceil(totalCount / pageLimit);
 
           if (existingPages >= expectedPages) {
             console.log(`  [SKIP] ${dateStr} - ${existingPages} file(s) complete`);
@@ -854,8 +924,8 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
       }
 
       if (dryRun) {
-        const totalCount = await fetchCount(slug, date, isHost, token);
-        const pageCount = Math.ceil(totalCount / PAGE_LIMIT) || 1;
+        const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet });
+        const pageCount = Math.ceil(totalCount / pageLimit) || 1;
         console.log(`  [DRY] ${dateStr} - would download ${totalCount} transaction(s) in ${pageCount} file(s)`);
         continue;
       }
@@ -869,7 +939,7 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
         console.error(`  [ERROR] ${dateStr} - ${result.error}`);
         stats.errors++;
       } else {
-        const fileLabel = result.pageCount > 1 ? `${result.pageCount} files` : buildFilePath(slug, date);
+        const fileLabel = result.pageCount > 1 ? `${result.pageCount} files` : buildFilePath(accountDir, date);
         console.log(`  [OK] ${dateStr} - ${result.totalCount} transaction(s) -> ${fileLabel}`);
         stats.downloaded++;
         stats.files += result.downloaded;
@@ -907,7 +977,16 @@ function monthIncludesToday(month) {
  * Download transactions for a date range using monthly strategy.
  */
 async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
-  const { token, isHost, replace, dryRun, delayMs } = options;
+  const {
+    token,
+    isHost,
+    replace,
+    dryRun,
+    delayMs,
+    accountDir = slug,
+    pageLimit = DEFAULT_PAGE_LIMIT,
+    fieldSet,
+  } = options;
 
   const months = generateMonthRange(startDate, endDate);
   const stats = {
@@ -929,9 +1008,9 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
     const isCurrent = monthIncludesToday(month);
 
     try {
-      const singleFilePath = buildMonthlyFilePath(slug, month.start);
+      const singleFilePath = buildMonthlyFilePath(accountDir, month.start);
       const hasSingleFile = fileExists(singleFilePath);
-      const hasPagedFiles = fileExists(buildMonthlyFilePath(slug, month.start, 1));
+      const hasPagedFiles = fileExists(buildMonthlyFilePath(accountDir, month.start, 1));
 
       if (!replace && !isCurrent) {
         if (hasSingleFile) {
@@ -939,17 +1018,17 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
           stats.skipped++;
           continue;
         } else if (hasPagedFiles) {
-          const existingPages = countExistingMonthPages(slug, month.start);
-          const lastPageRows = countCsvRows(buildMonthlyFilePath(slug, month.start, existingPages));
+          const existingPages = countExistingMonthPages(accountDir, month.start);
+          const lastPageRows = countCsvRows(buildMonthlyFilePath(accountDir, month.start, existingPages));
 
-          if (lastPageRows < PAGE_LIMIT) {
+          if (lastPageRows < pageLimit) {
             console.log(`  [SKIP] ${monthStr} - ${existingPages} file(s) complete`);
             stats.skipped++;
             continue;
           }
 
-          const totalCount = await fetchMonthCount(slug, month, isHost, token);
-          const expectedPages = Math.ceil(totalCount / PAGE_LIMIT);
+          const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet });
+          const expectedPages = Math.ceil(totalCount / pageLimit);
 
           if (existingPages >= expectedPages) {
             console.log(`  [SKIP] ${monthStr} - ${existingPages} file(s) complete`);
@@ -962,8 +1041,8 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
       }
 
       if (dryRun) {
-        const totalCount = await fetchMonthCount(slug, month, isHost, token);
-        const pageCount = Math.ceil(totalCount / PAGE_LIMIT) || 1;
+        const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet });
+        const pageCount = Math.ceil(totalCount / pageLimit) || 1;
         console.log(`  [DRY] ${monthStr} - would download ${totalCount} transaction(s) in ${pageCount} file(s)`);
         continue;
       }
@@ -977,7 +1056,8 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
         console.error(`  [ERROR] ${monthStr} - ${result.error}`);
         stats.errors++;
       } else {
-        const fileLabel = result.pageCount > 1 ? `${result.pageCount} files` : buildMonthlyFilePath(slug, month.start);
+        const fileLabel =
+          result.pageCount > 1 ? `${result.pageCount} files` : buildMonthlyFilePath(accountDir, month.start);
         console.log(`  [OK] ${monthStr} - ${result.totalCount} transaction(s) -> ${fileLabel}`);
         stats.downloaded++;
         stats.files += result.downloaded;
@@ -1013,7 +1093,16 @@ function yearIncludesToday(year) {
  * Download transactions for a date range using yearly strategy.
  */
 async function downloadTransactionsYearly(slug, startDate, endDate, options) {
-  const { token, isHost, replace, dryRun, delayMs } = options;
+  const {
+    token,
+    isHost,
+    replace,
+    dryRun,
+    delayMs,
+    accountDir = slug,
+    pageLimit = DEFAULT_PAGE_LIMIT,
+    fieldSet,
+  } = options;
 
   const years = generateYearRange(startDate, endDate);
   const stats = {
@@ -1035,9 +1124,9 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
     const isCurrent = yearIncludesToday(year);
 
     try {
-      const singleFilePath = buildYearlyFilePath(slug, year.start);
+      const singleFilePath = buildYearlyFilePath(accountDir, year.start);
       const hasSingleFile = fileExists(singleFilePath);
-      const hasPagedFiles = fileExists(buildYearlyFilePath(slug, year.start, 1));
+      const hasPagedFiles = fileExists(buildYearlyFilePath(accountDir, year.start, 1));
 
       if (!replace && !isCurrent) {
         if (hasSingleFile) {
@@ -1045,17 +1134,17 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
           stats.skipped++;
           continue;
         } else if (hasPagedFiles) {
-          const existingPages = countExistingYearPages(slug, year.start);
-          const lastPageRows = countCsvRows(buildYearlyFilePath(slug, year.start, existingPages));
+          const existingPages = countExistingYearPages(accountDir, year.start);
+          const lastPageRows = countCsvRows(buildYearlyFilePath(accountDir, year.start, existingPages));
 
-          if (lastPageRows < PAGE_LIMIT) {
+          if (lastPageRows < pageLimit) {
             console.log(`  [SKIP] ${yearStr} - ${existingPages} file(s) complete`);
             stats.skipped++;
             continue;
           }
 
-          const totalCount = await fetchYearCount(slug, year, isHost, token);
-          const expectedPages = Math.ceil(totalCount / PAGE_LIMIT);
+          const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet });
+          const expectedPages = Math.ceil(totalCount / pageLimit);
 
           if (existingPages >= expectedPages) {
             console.log(`  [SKIP] ${yearStr} - ${existingPages} file(s) complete`);
@@ -1068,8 +1157,8 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
       }
 
       if (dryRun) {
-        const totalCount = await fetchYearCount(slug, year, isHost, token);
-        const pageCount = Math.ceil(totalCount / PAGE_LIMIT) || 1;
+        const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet });
+        const pageCount = Math.ceil(totalCount / pageLimit) || 1;
         console.log(`  [DRY] ${yearStr} - would download ${totalCount} transaction(s) in ${pageCount} file(s)`);
         continue;
       }
@@ -1083,7 +1172,8 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
         console.error(`  [ERROR] ${yearStr} - ${result.error}`);
         stats.errors++;
       } else {
-        const fileLabel = result.pageCount > 1 ? `${result.pageCount} files` : buildYearlyFilePath(slug, year.start);
+        const fileLabel =
+          result.pageCount > 1 ? `${result.pageCount} files` : buildYearlyFilePath(accountDir, year.start);
         console.log(`  [OK] ${yearStr} - ${result.totalCount} transaction(s) -> ${fileLabel}`);
         stats.downloaded++;
         stats.files += result.downloaded;
@@ -1152,8 +1242,10 @@ const getProgram = (argv) => {
   program.option('--daily', 'Download by day instead of by month', false);
   program.option('--yearly', 'Download by year instead of by month', false);
   program.option('--strategy <strategy>', 'Download strategy: daily, monthly (default), yearly');
+  program.option('--fields <preset>', `Field set preset: ${Object.keys(FIELD_SETS).join(', ')}`, 'default');
   program.option('--replace', 'Replace existing files', false);
   program.option('--dry-run', 'Show what would be downloaded without downloading', false);
+  program.option('--page-limit <n>', 'Max transactions per file/request (default: 1000)', parseInt);
   program.option('--rate-limit <n>', 'Max requests per minute (default: 60 with token, 10 without)', parseInt);
 
   program.addHelpText(
@@ -1225,11 +1317,11 @@ function printStats(stats) {
 async function main(argv = process.argv) {
   const program = getProgram(argv);
   const options = program.opts();
-  let [slug] = program.args;
+  const [arg] = program.args;
 
-  // Check if slug is a directory with oc.config.js
-  const isDir = fs.existsSync(slug) && fs.statSync(slug).isDirectory();
-  const config = isDir ? await loadAccountConfig(slug) : null;
+  // Check if arg is a directory with oc.config.js
+  const isDir = fs.existsSync(arg) && fs.statSync(arg).isDirectory();
+  const config = isDir ? await loadAccountConfig(arg) : null;
   const downloadConfig = config?.['ofi-csv-download'] || {};
 
   // Helper: use CLI value if explicitly set, otherwise config value, otherwise default
@@ -1246,13 +1338,14 @@ async function main(argv = process.argv) {
   const resolvedStrategy = resolve('strategy', 'strategy', undefined);
   const strategy = resolvedStrategy || (isDaily ? 'daily' : isYearly ? 'yearly' : 'monthly');
 
-  // When slug is a directory name, use config slug or directory basename as the slug
-  if (isDir) {
-    slug = config?.slug || path.basename(slug);
-  }
+  // slug = API identifier, accountDir = file path prefix
+  const slug = isDir ? config?.slug || path.basename(arg) : arg;
+  const accountDir = arg;
 
   // Get token from environment (optional, allows access to private data)
-  const token = process.env.PERSONAL_TOKEN;
+  const accessToken = process.env.ACCESS_TOKEN;
+  const personalToken = process.env.PERSONAL_TOKEN;
+  const token = accessToken || personalToken;
 
   const defaultRateLimit = token ? 60 : 10;
   const rateLimit = Number(resolve('rateLimit', 'rate-limit', defaultRateLimit));
@@ -1281,6 +1374,14 @@ async function main(argv = process.argv) {
     process.exit(1);
   }
 
+  const pageLimit = Number(resolve('pageLimit', 'page-limit', DEFAULT_PAGE_LIMIT));
+  const fieldSet = resolve('fields', 'fields', 'default');
+
+  if (!FIELD_SETS[fieldSet]) {
+    console.error(`Error: unknown field set '${fieldSet}'. Available: ${Object.keys(FIELD_SETS).join(', ')}`);
+    process.exit(1);
+  }
+
   // Download
   const stats = await downloadTransactions(slug, startDate, endDate, {
     token,
@@ -1289,22 +1390,23 @@ async function main(argv = process.argv) {
     dryRun: options.dryRun,
     strategy,
     delayMs,
+    accountDir,
+    pageLimit,
+    fieldSet,
   });
 
   // Print summary
   printStats(stats);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main()
-    .then(() => process.exit())
-    .catch((e) => {
-      if (e.name !== 'CommanderError') {
-        console.error(e);
-      }
-      process.exit(1);
-    });
-}
+main()
+  .then(() => process.exit())
+  .catch((e) => {
+    if (e.name !== 'CommanderError') {
+      console.error(e);
+    }
+    process.exit(1);
+  });
 
 export {
   // Date utilities
@@ -1336,7 +1438,8 @@ export {
   downloadYearTransactions,
   // Config
   CSV_FIELDS,
+  FIELD_SETS,
   DEFAULT_PARAMS,
-  REST_BASE_URL,
-  PAGE_LIMIT,
+  REST_URL,
+  DEFAULT_PAGE_LIMIT,
 };
