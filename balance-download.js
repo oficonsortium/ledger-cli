@@ -27,16 +27,29 @@ import 'dotenv/config';
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { Command } from 'commander';
+import { parse as csvParseSync } from 'csv-parse/sync';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const GRAPHQL_URL = 'https://api.opencollective.com/graphql/v2';
+const API_URL = process.env.API_URL || 'https://api.opencollective.com';
 const PAGE_LIMIT = 100;
+
+/**
+ * Build authentication headers from a token string.
+ */
+function buildAuthHeaders(token) {
+  if (!token) {
+    return {};
+  }
+  if (process.env.ACCESS_TOKEN) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return { 'Personal-Token': token };
+}
 
 // CSV columns matching the BALANCE_CARRYFORWARD format
 const CSV_COLUMNS = [
@@ -178,11 +191,11 @@ const ACCOUNT_BALANCE_QUERY = /* GraphQL */ `
 async function graphqlRequest(query, variables, token, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const response = await fetch(GRAPHQL_URL, {
+      const response = await fetch(`${API_URL}/graphql/v2`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { 'Personal-Token': token }),
+          ...buildAuthHeaders(token),
         },
         body: JSON.stringify({ query, variables }),
       });
@@ -464,6 +477,7 @@ const getProgram = (argv) => {
   program.option('--date <date>', 'Balance date (YYYY-MM-DD), defaults to config from date');
   program.option('-o, --output <file>', 'Output CSV file (default: <slug>/<slug>-opening-balances.csv)');
   program.option('--list', 'Output balances to stdout as slug, amount, currency (no CSV file)');
+  program.option('--replace', 'Replace existing balance file', false);
   program.option('--rate-limit <n>', 'Max requests per minute (default: 60 with token, 10 without)', parseInt);
 
   program.addHelpText(
@@ -501,7 +515,7 @@ async function main(argv = process.argv) {
   const [accountDirArg] = program.args;
 
   // Get token from environment (optional, allows access to private data)
-  const token = process.env.PERSONAL_TOKEN;
+  const token = process.env.ACCESS_TOKEN || process.env.PERSONAL_TOKEN;
 
   // Resolve config from account directory or CLI flags
   let slug;
@@ -549,6 +563,22 @@ async function main(argv = process.argv) {
   console.warn(`Rate limit: ${rateLimit} req/min`);
 
   const displayDate = dateStr.split('T')[0];
+
+  // Determine output path early so we can check for existing file
+  const outputDir = accountDirArg || slug;
+  const outputPath = options.output || buildDefaultOutputPath(outputDir);
+
+  // Skip if balance file already exists with matching date (unless --replace or --list)
+  if (!options.replace && !options.list && fs.existsSync(outputPath)) {
+    const existing = fs.readFileSync(outputPath, 'utf8');
+    const rows = csvParseSync(existing, { columns: true, to: 1 });
+    const existingDate = rows[0]?.['Date & Time'];
+    if (existingDate === dateStr) {
+      console.warn(`[SKIP] ${outputPath} already has balances for ${displayDate} (use --replace to overwrite)`);
+      return;
+    }
+  }
+
   console.warn(`Fetching balances for ${slug} as of ${displayDate}...`);
 
   // Fetch balances
@@ -588,10 +618,6 @@ async function main(argv = process.argv) {
   // Generate CSV
   const csv = generateCsv(balances, dateStr);
 
-  // Determine output path
-  const outputDir = accountDirArg || slug;
-  const outputPath = options.output || buildDefaultOutputPath(outputDir);
-
   // Ensure directory exists
   const dir = path.dirname(outputPath);
   if (dir && !fs.existsSync(dir)) {
@@ -603,15 +629,13 @@ async function main(argv = process.argv) {
   console.warn(`Wrote ${balances.length} opening balance entries to ${outputPath}`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main()
-    .then(() => process.exit())
-    .catch((e) => {
-      if (e.name !== 'CommanderError') {
-        console.error(e);
-      }
-      process.exit(1);
-    });
-}
+main()
+  .then(() => process.exit())
+  .catch((e) => {
+    if (e.name !== 'CommanderError') {
+      console.error(e);
+    }
+    process.exit(1);
+  });
 
-export { fetchAllBalances, fetchAccountBalance, generateCsv, graphqlRequest, GRAPHQL_URL, PAGE_LIMIT };
+export { fetchAllBalances, fetchAccountBalance, generateCsv, graphqlRequest, API_URL, PAGE_LIMIT };
