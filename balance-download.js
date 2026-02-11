@@ -269,7 +269,7 @@ async function fetchAccountBalance(slug, dateTo, token) {
 /**
  * Fetch all hosted account balances with pagination.
  */
-async function fetchAllBalances(hostSlug, dateTo, token) {
+async function fetchAllBalances(hostSlug, dateTo, token, { delayMs = 500 } = {}) {
   const balances = [];
 
   // First, fetch the host's own balance (separate query, no pagination)
@@ -338,7 +338,7 @@ async function fetchAllBalances(hostSlug, dateTo, token) {
 
     // Delay to avoid rate limiting
     if (offset < totalCount) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
@@ -464,6 +464,7 @@ const getProgram = (argv) => {
   program.option('--date <date>', 'Balance date (YYYY-MM-DD), defaults to config from date');
   program.option('-o, --output <file>', 'Output CSV file (default: <slug>/<slug>-opening-balances.csv)');
   program.option('--list', 'Output balances to stdout as slug, amount, currency (no CSV file)');
+  program.option('--rate-limit <n>', 'Max requests per minute (default: 60 with token, 10 without)', parseInt);
 
   program.addHelpText(
     'after',
@@ -542,12 +543,17 @@ async function main(argv = process.argv) {
     return;
   }
 
+  const defaultRateLimit = token ? 60 : 10;
+  const rateLimit = options.rateLimit ? Number(options.rateLimit) : defaultRateLimit;
+  const delayMs = Math.ceil(60000 / rateLimit);
+  console.warn(`Rate limit: ${rateLimit} req/min`);
+
   const displayDate = dateStr.split('T')[0];
   console.warn(`Fetching balances for ${slug} as of ${displayDate}...`);
 
   // Fetch balances
   const balances = isHost
-    ? await fetchAllBalances(slug, dateStr, token)
+    ? await fetchAllBalances(slug, dateStr, token, { delayMs })
     : await fetchAccountBalance(slug, dateStr, token);
 
   console.warn(`Found ${balances.length} account(s) with non-zero balances`);

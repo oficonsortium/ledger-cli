@@ -90,6 +90,14 @@ Without `--from`, downloads from the oldest transaction date (set by init in con
 ofi-hledger babel --auto --from 2025-01-01 is -Q
 ```
 
+### `--rate-limit <n>`
+
+Max requests per minute, forwarded to `ofi-csv-download` and `ofi-balance-download`. Defaults to 60 with `PERSONAL_TOKEN`, 10 without.
+
+```bash
+ofi-hledger babel -a --rate-limit 5 bs
+```
+
 ### Combining flags
 
 Flags can be combined. They run in order: init, download, balances, convert, query.

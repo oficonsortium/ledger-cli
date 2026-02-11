@@ -44,6 +44,7 @@ ofi-csv-download ofitech --dry-run
 | `--strategy <strategy>` | Download strategy: `daily`, `monthly`, `yearly`    | `monthly`                               |
 | `--replace`             | Replace existing files                             | `false`                                 |
 | `--dry-run`             | Show what would be downloaded                      | `false`                                 |
+| `--rate-limit <n>`      | Max requests per minute                            | `60` with token, `10` without           |
 
 When using an account directory with `oc.config.js`, `host`, `daily`, `yearly`, `strategy`, and `from` are loaded from config. CLI flags always override. Note that `ofi-ledger-cli-init` sets `from` to the oldest transaction date, so the config default is typically much earlier than January 1st of the previous year.
 
