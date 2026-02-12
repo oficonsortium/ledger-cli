@@ -12,7 +12,7 @@ CLI tools to download [OFi / Open Collective](https://opencollective.com/) trans
 | [`ofi-balance-download`](docs/ofi-balance-download.md) | Download opening balances from the API                 |
 | [`ofi-ledger-cli-init`](docs/ofi-ledger-cli-init.md)   | Initialize an account directory                        |
 
-Configuration: [`oc.config.js`](docs/oc-config.md) | Rules: [`rules`](docs/rules.md)
+Configuration: [`ofi-ledger.config.js`](docs/ofi-ledger-config.md) | Rules: [`rules`](docs/rules.md)
 
 ## Prerequisites
 
@@ -38,11 +38,11 @@ This initializes the account directory, downloads transactions and opening balan
 
 ## Step by step
 
-Each account lives in its own directory with an `oc.config.js`:
+Each account lives in its own directory with an `ofi-ledger.config.js`:
 
 ```
 eslint/
-  oc.config.js
+  ofi-ledger.config.js
   rules-eslint.js          # optional custom rules
   eslint-opening-balances.csv
   2025/

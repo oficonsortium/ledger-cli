@@ -8,10 +8,10 @@ Rule-based Open Collective CSV to hledger journal transformer.
 ofi-hledger-convert <input...> [options]
 ```
 
-Input can be one or more CSV files, glob patterns, directories, or account directories with `oc.config.js`.
+Input can be one or more CSV files, glob patterns, directories, or account directories with `ofi-ledger.config.js`.
 
 ```bash
-# Account directory (uses oc.config.js)
+# Account directory (uses ofi-ledger.config.js)
 ofi-hledger-convert ofitech
 ofi-hledger-convert ofico ofitech opensource
 
@@ -38,7 +38,7 @@ ofi-hledger-convert ofitech/ -o journal.hledger
 | `--date-field <field>`    | Date column: `transaction` or `effective`    | `transaction`                                  |
 | `--stats`                 | Print rule match statistics                  | off                                            |
 
-When using an account directory with `oc.config.js`, these options are loaded from config. CLI flags always override config values.
+When using an account directory with `ofi-ledger.config.js`, these options are loaded from config. CLI flags always override config values.
 
 ### Date fields
 

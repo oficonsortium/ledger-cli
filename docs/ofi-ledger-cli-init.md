@@ -1,6 +1,6 @@
 # ofi-ledger-cli-init
 
-Initialize an account directory with `oc.config.js` from the Open Collective GraphQL API.
+Initialize an account directory with `ofi-ledger.config.js` from the Open Collective GraphQL API.
 
 ## Authentication (optional)
 
@@ -40,8 +40,8 @@ A download strategy is picked based on transaction volume:
 | <= 1000/month | `monthly` |
 | > 1000/month  | `daily`   |
 
-The generated `oc.config.js` includes `slug`, `ofi-csv-download` (host, strategy, from), and `ofi-hledger-convert` (output) sections.
+The generated `ofi-ledger.config.js` includes `slug`, `ofi-csv-download` (host, strategy, from), and `ofi-hledger-convert` (output) sections.
 
 ### Updating existing config
 
-If `oc.config.js` already exists, missing keys are filled in without overwriting existing values. This lets you re-run init to pick up new defaults while preserving your customizations.
+If `ofi-ledger.config.js` already exists, missing keys are filled in without overwriting existing values. This lets you re-run init to pick up new defaults while preserving your customizations.

@@ -12,10 +12,10 @@ Set `PERSONAL_TOKEN` in a `.env` file or as an environment variable to access pr
 ofi-balance-download <account-dir> [options]
 ```
 
-The argument can be an account directory with `oc.config.js` or a slug used with `--host`.
+The argument can be an account directory with `ofi-ledger.config.js` or a slug used with `--host`.
 
 ```bash
-# Account directory (reads host and from date from oc.config.js)
+# Account directory (reads host and from date from ofi-ledger.config.js)
 ofi-balance-download babel
 ofi-balance-download raft --date 2025-06-01
 
@@ -34,8 +34,10 @@ ofi-balance-download --host ofico --date 2025-01-01 --list
 | `--date <date>`       | Balance date (YYYY-MM-DD)                          | config `ofi-csv-download.from`       |
 | `-o, --output <file>` | Output CSV file                                    | `<slug>/<slug>-opening-balances.csv` |
 | `--list`              | Output balances to stdout as a table (no CSV file) | off                                  |
+| `--replace`           | Replace existing balance file                      | off                                  |
+| `--rate-limit <n>`    | Max requests per minute                            | `60` with token, `10` without        |
 
-When using an account directory with `oc.config.js`, `host` is read from `ofi-csv-download.host` and `date` falls back to `ofi-csv-download.from`. CLI flags always override.
+When using an account directory with `ofi-ledger.config.js`, `host` is read from `ofi-csv-download.host` and `date` falls back to `ofi-csv-download.from`. CLI flags always override.
 
 ## Modes
 

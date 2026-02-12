@@ -126,7 +126,7 @@ export default {
 };
 ```
 
-Reference the rules file in `oc.config.js`:
+Reference the rules file in `ofi-ledger.config.js`:
 
 ```js
 export default {

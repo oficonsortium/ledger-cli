@@ -12,7 +12,7 @@ Set `PERSONAL_TOKEN` in a `.env` file or as an environment variable to access pr
 ofi-csv-download <slug> [options]
 ```
 
-The slug can be an account slug or a directory with `oc.config.js`.
+The slug can be an account slug or a directory with `ofi-ledger.config.js`.
 
 ```bash
 # Using config
@@ -42,11 +42,13 @@ ofi-csv-download ofitech --dry-run
 | `--daily`               | Download by day instead of by month                | `false`                                 |
 | `--yearly`              | Download by year instead of by month               | `false`                                 |
 | `--strategy <strategy>` | Download strategy: `daily`, `monthly`, `yearly`    | `monthly`                               |
+| `--fields <preset>`     | Field set preset: `default`, `platform-default`    | `default`                               |
 | `--replace`             | Replace existing files                             | `false`                                 |
 | `--dry-run`             | Show what would be downloaded                      | `false`                                 |
+| `--page-limit <n>`      | Max transactions per file/request                  | `1000`                                  |
 | `--rate-limit <n>`      | Max requests per minute                            | `60` with token, `10` without           |
 
-When using an account directory with `oc.config.js`, `host`, `daily`, `yearly`, `strategy`, and `from` are loaded from config. CLI flags always override. Note that `ofi-ledger-cli-init` sets `from` to the oldest transaction date, so the config default is typically much earlier than January 1st of the previous year.
+When using an account directory with `ofi-ledger.config.js`, `host`, `daily`, `yearly`, `strategy`, and `from` are loaded from config. CLI flags always override. Note that `ofi-ledger-cli-init` sets `from` to the oldest transaction date, so the config default is typically much earlier than January 1st of the previous year.
 
 ## Strategies
 

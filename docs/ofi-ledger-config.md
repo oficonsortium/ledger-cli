@@ -1,4 +1,4 @@
-# oc.config.js
+# ofi-ledger.config.js
 
 Per-account configuration file. Place in each account directory to set defaults for all tools.
 
@@ -12,7 +12,7 @@ export default {
   'ofi-hledger-convert': {
     /* ... */
   },
-  hledger: {
+  'ofi-hledger': {
     /* ... */
   },
 };
@@ -37,6 +37,8 @@ When set, `slug` is used by `ofi-csv-download` for API requests, `ofi-hledger-co
 | `host`       | boolean | Use `hostTransactions` endpoint                                  |
 | `strategy`   | string  | Download strategy: `daily`, `monthly`, `yearly`                  |
 | `from`       | string  | Default start date (YYYY-MM-DD)                                  |
+| `fields`     | string  | Field set preset: `default`, `platform-default`                  |
+| `page-limit` | number  | Max transactions per file/request (default: `1000`)              |
 | `rate-limit` | number  | Max requests per minute (default: `60` with token, `10` without) |
 
 ### ofi-hledger-convert
@@ -59,7 +61,7 @@ The `date-field` option controls which CSV date column is used for journal entri
 
 The `from` and `to` options filter CSV rows by date. Both fall back to `ofi-csv-download.from` and `ofi-csv-download.to` respectively if not set.
 
-### hledger
+### ofi-hledger
 
 | Key    | Type     | Description                                        |
 | ------ | -------- | -------------------------------------------------- |
@@ -70,7 +72,7 @@ The `from` and `to` options filter CSV rows by date. Both fall back to `ofi-csv-
 ### Fiscal host with monthly downloads
 
 ```js
-// ofitech/oc.config.js
+// ofitech/ofi-ledger.config.js
 export default {
   slug: 'ofitech',
   'ofi-csv-download': { host: true, strategy: 'monthly', from: '2024-01-01' },
@@ -84,7 +86,7 @@ export default {
 ### Organization with custom rules
 
 ```js
-// ofico/oc.config.js
+// ofico/ofi-ledger.config.js
 export default {
   slug: 'ofico',
   'ofi-csv-download': { host: true, strategy: 'yearly', from: '2024-10-01' },
@@ -99,7 +101,7 @@ export default {
 ### Single collective
 
 ```js
-// babel/oc.config.js
+// babel/ofi-ledger.config.js
 export default {
   slug: 'babel',
   'ofi-csv-download': { strategy: 'monthly', from: '2025-01-01' },
@@ -112,7 +114,7 @@ export default {
 ### With default hledger aliases
 
 ```js
-// ofitech/oc.config.js
+// ofitech/ofi-ledger.config.js
 export default {
   slug: 'ofitech',
   'ofi-csv-download': { host: true },
@@ -120,7 +122,7 @@ export default {
     output: 'ofitech-host-transactions.journal',
     rules: './rules-ofitech.js',
   },
-  hledger: {
+  'ofi-hledger': {
     args: ['--alias', '/^(revenues|expenses):(operating|collectives:[^:]+):(.*)$/=\\1:\\3'],
   },
 };

@@ -1,6 +1,6 @@
 # ofi-hledger
 
-Query hledger journals using account config. Reads the journal path from `oc.config.js` and passes arguments to hledger.
+Query hledger journals using account config. Reads the journal path from `ofi-ledger.config.js` and passes arguments to hledger.
 
 ## Usage
 
@@ -32,7 +32,7 @@ ofi-hledger ofitech reg tag:payee=stripe
 
 ### `--init` / `-i`
 
-Initialize the account directory by running `ofi-ledger-cli-init`. Creates `oc.config.js` from the Open Collective GraphQL API. Fills missing config values without overwriting existing ones.
+Initialize the account directory by running `ofi-ledger-cli-init`. Creates `ofi-ledger.config.js` from the Open Collective GraphQL API. Fills missing config values without overwriting existing ones.
 
 ```bash
 ofi-hledger babel --init
@@ -90,6 +90,22 @@ Without `--from`, downloads from the oldest transaction date (set by init in con
 ofi-hledger babel --auto --from 2025-01-01 is -Q
 ```
 
+### `--replace`
+
+Replace existing files, forwarded to `ofi-csv-download` and `ofi-balance-download`.
+
+```bash
+ofi-hledger babel -a --replace bs
+```
+
+### `--page-limit <n>`
+
+Max transactions per file/request, forwarded to `ofi-csv-download`. Defaults to 1000.
+
+```bash
+ofi-hledger babel -a --page-limit 10000 bs
+```
+
 ### `--rate-limit <n>`
 
 Max requests per minute, forwarded to `ofi-csv-download` and `ofi-balance-download`. Defaults to 60 with `PERSONAL_TOKEN`, 10 without.
@@ -117,10 +133,10 @@ If no hledger args are provided and no flags are set, the help text is shown.
 
 ## Config
 
-`ofi-hledger` reads from two sections in `oc.config.js`:
+`ofi-hledger` reads from two sections in `ofi-ledger.config.js`:
 
 - `ofi-hledger-convert.output` - journal file path (required)
-- `hledger.args` - default arguments prepended to every query (optional)
+- `ofi-hledger.args` - default arguments prepended to every query (optional)
 
 ```js
 export default {
@@ -128,7 +144,7 @@ export default {
     output: 'ofitech-host-transactions.journal',
     // ...
   },
-  hledger: {
+  'ofi-hledger': {
     args: ['--alias', '/^(revenues|expenses):(operating|collectives:[^:]+):(.*)$/=\\1:\\3'],
   },
 };
@@ -165,4 +181,4 @@ ofi-hledger ofitech is --alias '/^(revenues|expenses):(operating|collectives:[^:
 ofi-hledger ofico is --alias '/^(revenues|expenses):[^:]+:(.*)$/=\1:\2'
 ```
 
-Or add the alias to `hledger.args` in `oc.config.js` to apply it by default.
+Or add the alias to `ofi-hledger.args` in `ofi-ledger.config.js` to apply it by default.
