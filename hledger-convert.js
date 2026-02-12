@@ -936,17 +936,19 @@ function detectFormat(rows, feeFormat) {
     return feeFormat;
   }
 
-  const feeColumn = COLUMNS.processorFee;
+  const feeColumns = [COLUMNS.processorFee, COLUMNS.hostFee, COLUMNS.platformFee, COLUMNS.taxAmount];
   for (const row of rows) {
-    const feeValue = row[feeColumn] || '';
-    if (feeValue && feeValue.trim()) {
-      try {
-        const fee = parseFloat(feeValue.replace(',', ''));
-        if (fee !== 0) {
-          return 'columns';
+    for (const col of feeColumns) {
+      const feeValue = row[col] || '';
+      if (feeValue && feeValue.trim()) {
+        try {
+          const fee = parseFloat(feeValue.replace(',', ''));
+          if (fee !== 0) {
+            return 'columns';
+          }
+        } catch (e) {
+          // Ignore parse errors
         }
-      } catch (e) {
-        // Ignore parse errors
       }
     }
   }
@@ -1242,7 +1244,7 @@ function formatJournal(entries) {
 // =============================================================================
 
 async function loadAccountConfig(dir) {
-  const configPath = path.join(dir, 'oc.config.js');
+  const configPath = path.join(dir, 'ofi-ledger.config.js');
   if (!fs.existsSync(configPath)) {
     return null;
   }
@@ -1305,7 +1307,7 @@ Fee Formats:
 
 Input:
   Accepts CSV files, glob patterns, directories, or account directories.
-  When given a directory with oc.config.js, loads config as defaults.
+  When given a directory with ofi-ledger.config.js, loads config as defaults.
   When given a plain directory, processes all *.csv files recursively.
   Multiple inputs can be specified for batch processing.
 
@@ -1314,7 +1316,7 @@ Rules:
   and ofico/rules-ofico.js for an example of organization-specific customization.
 
 Examples:
-  # Account directory (uses oc.config.js)
+  # Account directory (uses ofi-ledger.config.js)
   ofi-hledger-convert ofitech
   ofi-hledger-convert ofico ofitech opensource
 
@@ -1373,7 +1375,7 @@ function printStats(stats) {
 async function processInput(input, program) {
   const cliOptions = program.opts();
 
-  // Check if input is a directory with oc.config.js
+  // Check if input is a directory with ofi-ledger.config.js
   const isDir = fs.existsSync(input) && fs.statSync(input).isDirectory();
   const config = isDir ? await loadAccountConfig(input) : null;
   const hledgerConfig = config?.['ofi-hledger-convert'] || {};

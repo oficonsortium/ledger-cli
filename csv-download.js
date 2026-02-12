@@ -1212,7 +1212,7 @@ async function downloadTransactions(slug, startDate, endDate, options) {
 // =============================================================================
 
 async function loadAccountConfig(dir) {
-  const configPath = path.join(dir, 'oc.config.js');
+  const configPath = path.join(dir, 'ofi-ledger.config.js');
   if (!fs.existsSync(configPath)) {
     return null;
   }
@@ -1233,7 +1233,7 @@ const getProgram = (argv) => {
   program.name('ofi-csv-download');
   program.description('Download Open Collective transaction CSVs');
 
-  program.argument('<slug>', 'Account slug or directory with oc.config.js');
+  program.argument('<slug>', 'Account slug or directory with ofi-ledger.config.js');
 
   program.option('--host', 'Use hostTransactions endpoint (for fiscal hosts)', false);
   program.option('--from <date>', 'Start date (YYYY-MM-DD). Default: January 1st of previous year');
@@ -1319,7 +1319,7 @@ async function main(argv = process.argv) {
   const options = program.opts();
   const [arg] = program.args;
 
-  // Check if arg is a directory with oc.config.js
+  // Check if arg is a directory with ofi-ledger.config.js
   const isDir = fs.existsSync(arg) && fs.statSync(arg).isDirectory();
   const config = isDir ? await loadAccountConfig(arg) : null;
   const downloadConfig = config?.['ofi-csv-download'] || {};

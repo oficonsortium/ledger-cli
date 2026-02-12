@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * ledger-cli-init.js - Initialize an account directory with oc.config.js
+ * ledger-cli-init.js - Initialize an account directory with ofi-ledger.config.js
  *
  * Queries the Open Collective GraphQL API to determine the account type,
- * transaction volume, and generates an appropriate oc.config.js.
- * If oc.config.js already exists, fills in missing values without
+ * transaction volume, and generates an appropriate ofi-ledger.config.js.
+ * If ofi-ledger.config.js already exists, fills in missing values without
  * overwriting existing ones.
  *
  * USAGE
@@ -196,7 +196,7 @@ function serializeConfig(config) {
 }
 
 async function loadAccountConfig(dir) {
-  const configPath = path.join(dir, 'oc.config.js');
+  const configPath = path.join(dir, 'ofi-ledger.config.js');
   if (!fs.existsSync(configPath)) {
     return null;
   }
@@ -213,7 +213,7 @@ async function main(argv = process.argv) {
   const program = new Command();
   program.exitOverride();
   program.name('ofi-ledger-cli-init');
-  program.description('Initialize an account directory with oc.config.js from Open Collective API');
+  program.description('Initialize an account directory with ofi-ledger.config.js from Open Collective API');
   program.argument('<slug>', 'Account slug (e.g. ofitech, phpfoundation)');
   program.option('--dry-run', 'Print config without writing');
   program.parse(argv);
@@ -223,10 +223,20 @@ async function main(argv = process.argv) {
   const token = process.env.ACCESS_TOKEN || process.env.PERSONAL_TOKEN;
   const now = new Date();
 
-  // If argument is a directory with oc.config.js, use config slug for API query
+  // If argument is a directory with ofi-ledger.config.js, use config slug for API query
   const isDir = fs.existsSync(arg) && fs.statSync(arg).isDirectory();
   const existingConfig = isDir ? await loadAccountConfig(arg) : null;
   const slug = existingConfig?.slug || (isDir ? path.basename(arg) : arg);
+
+  // Skip API call if config already has all required fields
+  if (existingConfig && !opts.dryRun) {
+    const dl = existingConfig['ofi-csv-download'] || {};
+    const cv = existingConfig['ofi-hledger-convert'] || {};
+    if (existingConfig.slug && 'host' in dl && dl.from && cv.output) {
+      console.error(`${arg}/ofi-ledger.config.js is up to date`);
+      return;
+    }
+  }
 
   // Build and execute query
   const { query, variables } = buildQuery(now);
@@ -288,7 +298,7 @@ async function main(argv = process.argv) {
   const configContent = serializeConfig(merged);
 
   if (opts.dryRun) {
-    console.error(`\n--- ${arg}/oc.config.js (dry run) ---`);
+    console.error(`\n--- ${arg}/ofi-ledger.config.js (dry run) ---`);
     console.log(configContent);
     return;
   }
@@ -299,16 +309,16 @@ async function main(argv = process.argv) {
     console.error(`\nCreated ${arg}/`);
   }
 
-  const configPath = path.join(dir, 'oc.config.js');
+  const configPath = path.join(dir, 'ofi-ledger.config.js');
 
   if (existing && JSON.stringify(existing) === JSON.stringify(merged)) {
-    console.error(`\n${arg}/oc.config.js is up to date`);
+    console.error(`\n${arg}/ofi-ledger.config.js is up to date`);
   } else {
     fs.writeFileSync(configPath, configContent);
     if (existing) {
-      console.error(`\nUpdated ${arg}/oc.config.js (filled missing defaults)`);
+      console.error(`\nUpdated ${arg}/ofi-ledger.config.js (filled missing defaults)`);
     } else {
-      console.error(`\nWrote ${arg}/oc.config.js`);
+      console.error(`\nWrote ${arg}/ofi-ledger.config.js`);
     }
   }
 

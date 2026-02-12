@@ -8,7 +8,7 @@
  * USAGE
  * =====
  *
- *     # Using account directory (reads oc.config.js)
+ *     # Using account directory (reads ofi-ledger.config.js)
  *     ofi-balance-download webpack
  *     ofi-balance-download raft --date 2025-06-01
  *
@@ -450,7 +450,7 @@ function buildDefaultOutputPath(slug) {
 }
 
 async function loadAccountConfig(dir) {
-  const configPath = path.join(dir, 'oc.config.js');
+  const configPath = path.join(dir, 'ofi-ledger.config.js');
   if (!fs.existsSync(configPath)) {
     return null;
   }
@@ -471,7 +471,7 @@ const getProgram = (argv) => {
   program.name('ofi-balance-download');
   program.description('Query account balances from Open Collective GraphQL API');
 
-  program.argument('[account-dir]', 'Account directory with oc.config.js');
+  program.argument('[account-dir]', 'Account directory with ofi-ledger.config.js');
 
   program.option('--host <slug>', 'Host slug (e.g., opensource, ofico)');
   program.option('--date <date>', 'Balance date (YYYY-MM-DD), defaults to config from date');
@@ -492,7 +492,7 @@ Output:
   Use --list to output balances as a table to stdout (sorted by amount descending)
 
 Examples:
-  # Account directory (reads host and from date from oc.config.js)
+  # Account directory (reads host and from date from ofi-ledger.config.js)
   ofi-balance-download webpack
   ofi-balance-download raft --date 2025-06-01
 
@@ -533,7 +533,7 @@ async function main(argv = process.argv) {
     // Date: CLI --date overrides config from
     const date = options.date || downloadConfig.from;
     if (!date) {
-      console.error('Error: no date specified. Use --date or set from in oc.config.js');
+      console.error('Error: no date specified. Use --date or set from in ofi-ledger.config.js');
       process.exit(1);
     }
     dateStr = `${date}T00:00:00.000Z`;

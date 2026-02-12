@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * hledger.js - Query hledger journals using oc.config.js
+ * hledger.js - Query hledger journals using ofi-ledger.config.js
  *
- * Reads the journal output path from an account's oc.config.js
+ * Reads the journal output path from an account's ofi-ledger.config.js
  * and passes all remaining arguments to hledger.
  * Falls back to transactions.journal if no config exists.
  *
@@ -25,12 +25,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const program = new Command();
 program.name('ofi-hledger');
-program.description('Query hledger journals using oc.config.js');
+program.description('Query hledger journals using ofi-ledger.config.js');
 
-program.argument('<account-dir>', 'Account directory with oc.config.js');
+program.argument('<account-dir>', 'Account directory with ofi-ledger.config.js');
 program.argument('[hledger-args...]', 'hledger command and arguments (e.g. bs, is --depth 2)');
 
-program.option('-i, --init', 'Initialize account directory with oc.config.js');
+program.option('-i, --init', 'Initialize account directory with ofi-ledger.config.js');
 program.option('-d, --download', 'Download latest transactions before querying');
 program.option('--from <date>', 'Download start date (YYYY-MM-DD), forwarded to ofi-csv-download');
 program.option('--to <date>', 'Download end date (YYYY-MM-DD), forwarded to ofi-csv-download');
@@ -79,7 +79,7 @@ if (opts.init) {
 }
 
 // Load config if it exists, otherwise use defaults
-const configPath = path.resolve(accountDir, 'oc.config.js');
+const configPath = path.resolve(accountDir, 'ofi-ledger.config.js');
 let config = {};
 if (fs.existsSync(configPath)) {
   config = (await import(configPath)).default;
@@ -146,7 +146,7 @@ if (opts.convert) {
 if (hledgerArgs.length > 0) {
   const output = config['ofi-hledger-convert']?.output || 'transactions.journal';
   const journalPath = path.join(accountDir, output);
-  const defaultArgs = config['hledger']?.args || [];
+  const defaultArgs = config['ofi-hledger']?.args || [];
   const fullArgs = ['-f', journalPath, ...defaultArgs, ...hledgerArgs];
 
   console.error(`> hledger ${fullArgs.map((a) => (a.includes(' ') ? `'${a}'` : a)).join(' ')}`);
