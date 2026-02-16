@@ -1,135 +1,106 @@
 # ofi-hledger
 
-Query hledger journals using account config. Reads the journal path from `ofi-ledger.config.js` and passes arguments to hledger.
+All-in-one CLI: init, download, balances, convert, then query hledger. Runs the full pipeline by default. Use `--no-*` flags to skip steps.
 
 ## Usage
 
 ```bash
-ofi-hledger <account-dir> [hledger-args...] [options]
+ofi-hledger <account-dir> [hledger-args...]
 ```
 
 ```bash
-# Balance sheet
-ofi-hledger ofitech bs
+# Balance sheet (runs full pipeline first)
+ofi-hledger babel bs
 
-# Income statement
-ofi-hledger ofico is
+# With date range
+ofi-hledger babel --from 2025-01-01 bs
 
-# With depth
-ofi-hledger raft is --depth 1
+# Income statement with depth
+ofi-hledger babel is --depth 2
 
-# Monthly
-ofi-hledger ofitech is -M
+# Monthly income statement
+ofi-hledger babel is -M
 
-# Filter by collective
-ofi-hledger ofitech is acct:collectives:my-collective
+# Sync only (no query)
+ofi-hledger babel
 
-# Search by tag
-ofi-hledger ofitech reg tag:payee=stripe
+# Skip init and download (convert + query only)
+ofi-hledger babel --no-init --no-download --no-balances bs
 ```
 
-## Options
+## Pipeline
 
-### `--init` / `-i`
+Steps run in order: **init** → **download** → **balances** → **convert** → **query**.
 
-Initialize the account directory by running `ofi-ledger-cli-init`. Creates `ofi-ledger.config.js` from the Open Collective GraphQL API. Fills missing config values without overwriting existing ones.
-
-```bash
-ofi-hledger babel --init
-ofi-hledger babel -i -d -c bs
-```
-
-### `--download` / `-d`
-
-Download latest transactions from Open Collective before querying. Runs `ofi-csv-download <account-dir>` first.
-
-```bash
-ofi-hledger ofitech bs --download
-ofi-hledger ofitech bs -d
-```
-
-### `--from <date>` / `--to <date>`
-
-Date range forwarded to `ofi-csv-download` (with `--download`), `ofi-balance-download` (with `--balances`, `--from` is used as `--date`), and `ofi-hledger-convert` (with `--convert`, `--from` filters rows before the date).
-
-```bash
-ofi-hledger babel -d --from 2025-01-01
-ofi-hledger babel -d --from 2025-01-01 --to 2025-12-31
-```
-
-### `--balances`
-
-Fetch account balances from the Open Collective GraphQL API before querying. Runs `ofi-balance-download <account-dir>`. Uses `--from` as the balance date if provided.
-
-```bash
-ofi-hledger babel --balances --from 2025-01-01
-```
-
-### `--convert` / `-c`
-
-Re-generate the journal from CSVs before querying. Runs `ofi-hledger-convert <account-dir>` first, then proceeds with the hledger query.
-
-```bash
-ofi-hledger ofitech bs --convert
-ofi-hledger ofitech is -c
-```
-
-### `--auto` / `-a`
-
-Shortcut for `--init --download --balances --convert`. Runs the full pipeline: init, download, balances, convert, then query.
-
-```bash
-ofi-hledger babel -a bs
-ofi-hledger babel --auto --from 2025-01-01 bs
-```
+All steps are enabled by default. Use `--no-init`, `--no-download`, `--no-balances`, `--no-convert` to skip individual steps. If no hledger args are provided, the pipeline runs without a query (useful for syncing).
 
 Without `--from`, downloads from the oldest transaction date (set by init in config), which can be slow for accounts with long histories. Use `--from` to scope the download:
 
 ```bash
 # Quarterly report — only download what you need
-ofi-hledger babel --auto --from 2025-01-01 is -Q
+ofi-hledger babel --from 2025-01-01 is -Q
+```
+
+## Options
+
+### `--no-init`
+
+Skip the init step (`ofi-ledger-cli-init`).
+
+### `--no-download`
+
+Skip the download step (`ofi-csv-download`).
+
+### `--no-balances`
+
+Skip the balances step (`ofi-balance-download`).
+
+### `--no-convert`
+
+Skip the convert step (`ofi-hledger-convert`).
+
+### `--from <date>` / `--to <date>`
+
+Date range forwarded to download, balances (as `--date`), and convert.
+
+```bash
+ofi-hledger babel --from 2025-01-01 bs
+ofi-hledger babel --from 2025-01-01 --to 2025-12-31 bs
 ```
 
 ### `--replace`
 
-Replace existing files, forwarded to `ofi-csv-download` and `ofi-balance-download`.
+Replace existing files, forwarded to download and balances.
 
 ```bash
-ofi-hledger babel -a --replace bs
+ofi-hledger babel --replace bs
 ```
 
 ### `--page-limit <n>`
 
-Max transactions per file/request, forwarded to `ofi-csv-download`. Defaults to 1000.
-
-```bash
-ofi-hledger babel -a --page-limit 10000 bs
-```
+Max transactions per file/request, forwarded to download. Defaults to 1000.
 
 ### `--rate-limit <n>`
 
-Max requests per minute, forwarded to `ofi-csv-download` and `ofi-balance-download`. Defaults to 60 with `PERSONAL_TOKEN`, 10 without.
+Max requests per minute, forwarded to download and balances. Defaults to 60 with `PERSONAL_TOKEN`, 10 without.
 
-```bash
-ofi-hledger babel -a --rate-limit 5 bs
-```
+## Argument Position
 
-### Combining flags
+Because of `passThroughOptions()`, commander stops parsing ofi-hledger options after `<account-dir>` — everything after it is normally passed to hledger. To make the CLI more forgiving, ofi-hledger extracts its own flags from the pass-through args. All flags work in any position.
 
-Flags can be combined. They run in order: init, download, balances, convert, query.
+| Flag            | Type  | Forwarded to                              |
+| --------------- | ----- | ----------------------------------------- |
+| `--no-init`     | bool  | —                                         |
+| `--no-download` | bool  | —                                         |
+| `--no-balances` | bool  | —                                         |
+| `--no-convert`  | bool  | —                                         |
+| `--from`        | value | download, balances (as `--date`), convert |
+| `--to`          | value | download, convert                         |
+| `--replace`     | bool  | download, balances                        |
+| `--page-limit`  | value | download                                  |
+| `--rate-limit`  | value | download, balances                        |
 
-```bash
-# Download, convert, then query
-ofi-hledger ofitech bs -d -c
-
-# Full pipeline (equivalent to --auto)
-ofi-hledger babel -i -d --balances --from 2025-01-01 -c bs
-
-# Download only (no hledger query)
-ofi-hledger babel -d --from 2025-01-01
-```
-
-If no hledger args are provided and no flags are set, the help text is shown.
+`--from`/`--to` are NOT forwarded to hledger as `--begin`/`--end`. To filter the hledger query by date, pass `--begin`/`--end` directly as hledger args.
 
 ## Config
 

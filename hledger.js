@@ -30,16 +30,15 @@ program.description('Query hledger journals using ofi-ledger.config.js');
 program.argument('<account-dir>', 'Account directory with ofi-ledger.config.js');
 program.argument('[hledger-args...]', 'hledger command and arguments (e.g. bs, is --depth 2)');
 
-program.option('-i, --init', 'Initialize account directory with ofi-ledger.config.js');
-program.option('-d, --download', 'Download latest transactions before querying');
-program.option('--from <date>', 'Download start date (YYYY-MM-DD), forwarded to ofi-csv-download');
-program.option('--to <date>', 'Download end date (YYYY-MM-DD), forwarded to ofi-csv-download');
-program.option('--balances', 'Fetch opening balances before querying');
-program.option('-c, --convert', 'Re-generate journal from CSVs before querying');
-program.option('-a, --auto', 'Shortcut for --init --download --balances --convert');
+program.option('--no-init', 'Skip init step');
+program.option('--no-download', 'Skip download step');
+program.option('--no-balances', 'Skip balances step');
+program.option('--no-convert', 'Skip convert step');
+program.option('--from <date>', 'Start date (YYYY-MM-DD), forwarded to download/balances/convert');
+program.option('--to <date>', 'End date (YYYY-MM-DD), forwarded to download/convert');
 program.option('--replace', 'Replace existing files, forwarded to download commands', false);
-program.option('--page-limit <n>', 'Max transactions per file/request, forwarded to ofi-csv-download', parseInt);
-program.option('--rate-limit <n>', 'Max requests per minute, forwarded to download commands', parseInt);
+program.option('--page-limit <n>', 'Max transactions per file/request, forwarded to download', parseInt);
+program.option('--rate-limit <n>', 'Max requests per minute, forwarded to download/balances', parseInt);
 
 program.enablePositionalOptions();
 program.passThroughOptions();
@@ -47,34 +46,50 @@ program.passThroughOptions();
 program.addHelpText(
   'after',
   `
-All arguments after <account-dir> are passed through to hledger.
-Place ofi-hledger options BEFORE <account-dir>.
+Runs the full pipeline (init, download, balances, convert) then queries
+hledger. Use --no-init, --no-download, --no-balances, --no-convert to
+skip steps. All ofi-hledger flags work in any position.
 
 Examples:
-  ofi-hledger ofitech bs
-  ofi-hledger ofico is --depth 2
-  ofi-hledger --download --convert ofitech bs
-  ofi-hledger --auto babel bs
-  ofi-hledger --auto --from 2025-01-01 raft is
+  ofi-hledger babel bs
+  ofi-hledger babel --from 2025-01-01 bs
+  ofi-hledger babel --no-init bs
+  ofi-hledger babel --no-init --no-download --no-balances is --depth 2
 `,
 );
 
 program.parse();
 
 const opts = program.opts();
-const [accountDir, ...hledgerArgs] = program.args;
+const [accountDir, ...rawHledgerArgs] = program.args;
 
-// --auto expands to --init --download --balances --convert
-if (opts.auto) {
-  opts.init = true;
-  opts.download = true;
-  opts.balances = true;
-  opts.convert = true;
+// Extract ofi-hledger options from hledger pass-through args if the user placed
+// them after <account-dir> (commander treats them as positional due to
+// passThroughOptions).
+const ofiValueFlags = new Set(['--from', '--to', '--page-limit', '--rate-limit']);
+const ofiBoolTrueFlags = new Set(['--replace']);
+const ofiBoolFalseFlags = new Set(['--no-init', '--no-download', '--no-balances', '--no-convert']);
+const hledgerArgs = [];
+for (let i = 0; i < rawHledgerArgs.length; i++) {
+  const arg = rawHledgerArgs[i];
+  if (ofiValueFlags.has(arg) && i + 1 < rawHledgerArgs.length) {
+    const key = arg.replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    opts[key] = opts[key] || rawHledgerArgs[++i];
+  } else if (ofiBoolTrueFlags.has(arg)) {
+    const key = arg.replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    opts[key] = true;
+  } else if (ofiBoolFalseFlags.has(arg)) {
+    // --no-init → opts.init = false
+    const key = arg.replace(/^--no-/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    opts[key] = false;
+  } else {
+    hledgerArgs.push(arg);
+  }
 }
 
 if (opts.init) {
   const initScript = path.join(__dirname, 'ledger-cli-init.js');
-  console.error(`> ofi-ledger-cli-init ${accountDir}`);
+  console.error(`\n> ofi-ledger-cli-init ${accountDir}`);
   execFileSync('node', [initScript, accountDir], { stdio: 'inherit' });
 }
 
@@ -110,7 +125,7 @@ if (opts.download) {
   if (opts.rateLimit) {
     downloadArgs.push('--rate-limit', String(opts.rateLimit));
   }
-  console.error(`> ofi-csv-download ${downloadArgs.slice(1).join(' ')}`);
+  console.error(`\n> ofi-csv-download ${downloadArgs.slice(1).join(' ')}`);
   execFileSync('node', downloadArgs, { stdio: 'inherit' });
 }
 
@@ -126,7 +141,7 @@ if (opts.balances) {
   if (opts.rateLimit) {
     balancesArgs.push('--rate-limit', String(opts.rateLimit));
   }
-  console.error(`> ofi-balance-download ${balancesArgs.slice(1).join(' ')}`);
+  console.error(`\n> ofi-balance-download ${balancesArgs.slice(1).join(' ')}`);
   execFileSync('node', balancesArgs, { stdio: 'inherit' });
 }
 
@@ -139,7 +154,7 @@ if (opts.convert) {
   if (opts.to) {
     convertArgs.push('--to', opts.to);
   }
-  console.error(`> ofi-hledger-convert ${convertArgs.slice(1).join(' ')}`);
+  console.error(`\n> ofi-hledger-convert ${convertArgs.slice(1).join(' ')}`);
   execFileSync('node', convertArgs, { stdio: 'inherit' });
 }
 
@@ -149,7 +164,7 @@ if (hledgerArgs.length > 0) {
   const defaultArgs = config['ofi-hledger']?.args || [];
   const fullArgs = ['-f', journalPath, ...defaultArgs, ...hledgerArgs];
 
-  console.error(`> hledger ${fullArgs.map((a) => (a.includes(' ') ? `'${a}'` : a)).join(' ')}`);
+  console.error(`\n> hledger ${fullArgs.map((a) => (a.includes(' ') ? `'${a}'` : a)).join(' ')}`);
 
   try {
     execFileSync('hledger', fullArgs, { stdio: 'inherit' });
@@ -157,6 +172,4 @@ if (hledgerArgs.length > 0) {
     // hledger already printed its error, just propagate exit code
     process.exit(e.status || 1);
   }
-} else if (!opts.init && !opts.download && !opts.balances && !opts.convert) {
-  program.help();
 }
