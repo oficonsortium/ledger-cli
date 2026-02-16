@@ -39,13 +39,15 @@
     "glob": "^13.0.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@graphql-eslint/eslint-plugin": "^4.4.0",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.0",
     "eslint-config-opencollective": "^6.1.0",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-n": "^17.23.2",
     "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^17.3.0",
     "graphql": "^16.12.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
@@ -62,7 +64,9 @@
   },
   "@opencollective/depcheck": {
     "ignores": [
+      "@eslint/js",
       "eslint-import-resolver-typescript",
+      "globals",
       "graphql",
       "typescript-eslint"
     ]
@@ -78,5 +82,25 @@
     "package.json": [
       "prettier-package-json --write"
     ]
+  },
+  "overrides": {
+    "@typescript-eslint/utils": {
+      "eslint": "$eslint"
+    },
+    "@typescript-eslint/eslint-plugin": {
+      "eslint": "$eslint"
+    },
+    "@typescript-eslint/parser": {
+      "eslint": "$eslint"
+    },
+    "eslint-plugin-import": {
+      "eslint": "$eslint"
+    },
+    "eslint-plugin-react": {
+      "eslint": "$eslint"
+    },
+    "typescript-eslint": {
+      "eslint": "$eslint"
+    }
   }
 }
