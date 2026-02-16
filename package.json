@@ -1,6 +1,6 @@
 {
   "name": "@ofi/ledger-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI tools to download OFi / Open Collective transactions and convert them to hledger journals",
   "license": "MIT",
   "type": "module",
