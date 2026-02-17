@@ -28,10 +28,10 @@ npm install -g @ofi/ledger-cli
 
 ```bash
 # Recent data only (recommended for first use)
-ofi-hledger eslint --auto --from 2024-01-01 bs
+ofi-hledger eslint --from 2024-01-01 bs
 
 # All history (downloads from oldest transaction)
-ofi-hledger eslint --auto bs
+ofi-hledger eslint bs
 ```
 
 This initializes the account directory, downloads transactions and opening balances, converts to a journal, then queries the balance sheet. Without `--from`, it downloads from the oldest transaction date (set by init in config).
