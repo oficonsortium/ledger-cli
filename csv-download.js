@@ -28,6 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { Command } from 'commander';
+import { parse } from 'csv-parse/sync';
 
 // =============================================================================
 // Configuration
@@ -362,9 +363,9 @@ function buildRestUrl(slug, date, isHost, options = {}) {
     url.searchParams.set('offset', String(options.offset));
   }
 
-  // Add fields
-  const fields = FIELD_SETS[options.fieldSet] || FIELD_SETS.default;
-  url.searchParams.set('fields', fields.join(','));
+  // Add fields (preset name or comma-separated custom list)
+  const fields = FIELD_SETS[options.fieldSet] || options.fieldSet;
+  url.searchParams.set('fields', Array.isArray(fields) ? fields.join(',') : fields);
 
   // Add date range
   if (options.dateFrom && options.dateTo) {
@@ -389,7 +390,52 @@ function buildRestUrl(slug, date, isHost, options = {}) {
     url.searchParams.set('dateTo', formatISODate(dayEnd));
   }
 
+  url.searchParams.set('fetchAll', 1);
+  url.searchParams.set('limit', 100);
+
   return url.toString();
+}
+
+/**
+ * Fetch with retry and exponential backoff.
+ * Retries on network errors, 5xx server errors, and 429 rate limits.
+ * @param {string} url - URL to fetch
+ * @param {object} fetchOptions - Options passed to fetch()
+ * @param {object} retryOptions - Retry configuration
+ * @param {number} retryOptions.retries - Max retries (default: 2, so 3 total attempts)
+ * @param {number} retryOptions.baseDelay - Initial delay in ms (default: 1000)
+ * @returns {Promise<Response>}
+ */
+async function fetchWithRetry(url, fetchOptions = {}, { retries = 2, baseDelay = 1000 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      console.log;
+      const response = await fetch(url, fetchOptions);
+      if (response.ok) {
+        return response;
+      }
+      // Only retry on server errors (5xx) and rate limits (429)
+      if (response.status < 500 && response.status !== 429) {
+        return response;
+      }
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        const method = fetchOptions.method || 'GET';
+        console.warn(`  RETRY ${method} (${response.status}), attempt ${attempt + 2}/${retries + 1} in ${delay}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        return response;
+      }
+    } catch (error) {
+      if (attempt === retries) {
+        throw error;
+      }
+      const delay = baseDelay * Math.pow(2, attempt);
+      const method = fetchOptions.method || 'GET';
+      console.warn(`  RETRY ${method} (${error.message}), attempt ${attempt + 2}/${retries + 1} in ${delay}ms`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
 }
 
 /**
@@ -399,7 +445,7 @@ function buildRestUrl(slug, date, isHost, options = {}) {
 async function fetchCount(slug, date, isHost, token, { fieldSet } = {}) {
   const url = buildRestUrl(slug, date, isHost, { fieldSet });
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'HEAD',
     headers: {
       ...buildAuthHeaders(token),
@@ -433,7 +479,7 @@ async function fetchCsv(slug, date, isHost, token, options = {}) {
     fieldSet: options.fieldSet,
   });
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     headers: {
       ...buildAuthHeaders(token),
     },
@@ -450,10 +496,13 @@ async function fetchCsv(slug, date, isHost, token, options = {}) {
 /**
  * Count data rows (excluding header) in a CSV file.
  */
+function countCsvRecords(csvString) {
+  return parse(csvString, { columns: true, relax_quotes: true }).length;
+}
+
 function countCsvRows(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
-  const lines = content.trim().split('\n');
-  return lines.length - 1;
+  return countCsvRecords(content);
 }
 
 // =============================================================================
@@ -515,9 +564,13 @@ function deleteExistingFiles(slug, date) {
  * @returns {Promise<number>} Total count from X-Exported-Rows header
  */
 async function fetchMonthCount(slug, month, isHost, token, { fieldSet } = {}) {
-  const url = buildRestUrl(slug, month.start, isHost, { dateFrom: month.start, dateTo: month.end, fieldSet });
+  const url = buildRestUrl(slug, month.start, isHost, {
+    dateFrom: month.start,
+    dateTo: month.end,
+    fieldSet,
+  });
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'HEAD',
     headers: {
       ...buildAuthHeaders(token),
@@ -582,9 +635,13 @@ function deleteExistingMonthFiles(slug, date) {
  * @returns {Promise<number>} Total count from X-Exported-Rows header
  */
 async function fetchYearCount(slug, year, isHost, token, { fieldSet } = {}) {
-  const url = buildRestUrl(slug, year.start, isHost, { dateFrom: year.start, dateTo: year.end, fieldSet });
+  const url = buildRestUrl(slug, year.start, isHost, {
+    dateFrom: year.start,
+    dateTo: year.end,
+    fieldSet,
+  });
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'HEAD',
     headers: {
       ...buildAuthHeaders(token),
@@ -678,12 +735,11 @@ async function downloadYearTransactions(slug, year, options) {
     }
 
     // For first page, check if there's actually data
-    const lines = csvContent.trim().split('\n');
-    if (page === 1 && lines.length <= 1) {
+    const rowCount = countCsvRecords(csvContent);
+    if (page === 1 && rowCount === 0) {
       return { downloaded: 0, empty: true, error: null };
     }
 
-    const rowCount = lines.length - 1;
     const expectedRows = Math.min(pageLimit, totalCount - offset);
 
     if (rowCount !== expectedRows) {
@@ -752,12 +808,11 @@ async function downloadMonthTransactions(slug, month, options) {
     }
 
     // For first page, check if there's actually data
-    const lines = csvContent.trim().split('\n');
-    if (page === 1 && lines.length <= 1) {
+    const rowCount = countCsvRecords(csvContent);
+    if (page === 1 && rowCount === 0) {
       return { downloaded: 0, empty: true, error: null };
     }
 
-    const rowCount = lines.length - 1;
     const expectedRows = Math.min(pageLimit, totalCount - offset);
 
     if (rowCount !== expectedRows) {
@@ -822,12 +877,10 @@ async function downloadDateTransactions(slug, date, options) {
     }
 
     // For first page, check if there's actually data
-    const lines = csvContent.trim().split('\n');
-    if (page === 1 && lines.length <= 1) {
+    const rowCount = countCsvRecords(csvContent);
+    if (page === 1 && rowCount === 0) {
       return { downloaded: 0, empty: true, error: null };
     }
-
-    const rowCount = lines.length - 1; // Exclude header
     const expectedRows = Math.min(pageLimit, totalCount - offset);
 
     if (rowCount !== expectedRows) {
@@ -1242,10 +1295,15 @@ const getProgram = (argv) => {
   program.option('--daily', 'Download by day instead of by month', false);
   program.option('--yearly', 'Download by year instead of by month', false);
   program.option('--strategy <strategy>', 'Download strategy: daily, monthly (default), yearly');
-  program.option('--fields <preset>', `Field set preset: ${Object.keys(FIELD_SETS).join(', ')}`, 'default');
+  program.option(
+    '--fields <preset|list>',
+    `Field set preset (${Object.keys(FIELD_SETS).join(', ')}) or comma-separated field names`,
+    'default',
+  );
   program.option('--replace', 'Replace existing files', false);
   program.option('--dry-run', 'Show what would be downloaded without downloading', false);
   program.option('--page-limit <n>', 'Max transactions per file/request (default: 1000)', parseInt);
+
   program.option('--rate-limit <n>', 'Max requests per minute (default: 60 with token, 10 without)', parseInt);
 
   program.addHelpText(
@@ -1375,10 +1433,19 @@ async function main(argv = process.argv) {
   }
 
   const pageLimit = Number(resolve('pageLimit', 'page-limit', DEFAULT_PAGE_LIMIT));
-  const fieldSet = resolve('fields', 'fields', 'default');
 
-  if (!FIELD_SETS[fieldSet]) {
-    console.error(`Error: unknown field set '${fieldSet}'. Available: ${Object.keys(FIELD_SETS).join(', ')}`);
+  const fieldsOption = resolve('fields', 'fields', 'default');
+
+  // fieldsOption can be: a preset name (string), a comma-separated list (string), or an array (from config)
+  let fieldSet;
+  if (Array.isArray(fieldsOption)) {
+    fieldSet = fieldsOption.join(',');
+  } else if (FIELD_SETS[fieldsOption] || fieldsOption.includes(',')) {
+    fieldSet = fieldsOption;
+  } else {
+    console.error(
+      `Error: unknown field set '${fieldsOption}'. Available: ${Object.keys(FIELD_SETS).join(', ')}, or pass a comma-separated list of field names`,
+    );
     process.exit(1);
   }
 
