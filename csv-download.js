@@ -390,9 +390,6 @@ function buildRestUrl(slug, date, isHost, options = {}) {
     url.searchParams.set('dateTo', formatISODate(dayEnd));
   }
 
-  url.searchParams.set('fetchAll', 1);
-  url.searchParams.set('limit', 100);
-
   return url.toString();
 }
 
