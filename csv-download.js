@@ -349,8 +349,8 @@ function buildRestUrl(slug, date, isHost, options = {}) {
   const endpoint = isHost ? 'hostTransactions.csv' : 'transactions.csv';
   const url = new URL(`${REST_URL}/v2/${slug}/${endpoint}`);
 
-  // Add default parameters, then preset overrides
-  const params = { ...DEFAULT_PARAMS, ...FIELD_SET_PARAMS[options.fieldSet] };
+  // Add default parameters, then preset overrides, then per-call overrides
+  const params = { ...DEFAULT_PARAMS, ...FIELD_SET_PARAMS[options.fieldSet], ...options.params };
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
@@ -439,8 +439,8 @@ async function fetchWithRetry(url, fetchOptions = {}, { retries = 2, baseDelay =
  * Fetch the total count of transactions for a specific date using HEAD request.
  * @returns {Promise<number>} Total count from X-Exported-Rows header
  */
-async function fetchCount(slug, date, isHost, token, { fieldSet } = {}) {
-  const url = buildRestUrl(slug, date, isHost, { fieldSet });
+async function fetchCount(slug, date, isHost, token, { fieldSet, params } = {}) {
+  const url = buildRestUrl(slug, date, isHost, { fieldSet, params });
 
   const response = await fetchWithRetry(url, {
     method: 'HEAD',
@@ -474,6 +474,7 @@ async function fetchCsv(slug, date, isHost, token, options = {}) {
     dateFrom: options.dateFrom,
     dateTo: options.dateTo,
     fieldSet: options.fieldSet,
+    params: options.params,
   });
 
   const response = await fetchWithRetry(url, {
@@ -560,11 +561,12 @@ function deleteExistingFiles(slug, date) {
  * Fetch the total count of transactions for a month range using HEAD request.
  * @returns {Promise<number>} Total count from X-Exported-Rows header
  */
-async function fetchMonthCount(slug, month, isHost, token, { fieldSet } = {}) {
+async function fetchMonthCount(slug, month, isHost, token, { fieldSet, params } = {}) {
   const url = buildRestUrl(slug, month.start, isHost, {
     dateFrom: month.start,
     dateTo: month.end,
     fieldSet,
+    params,
   });
 
   const response = await fetchWithRetry(url, {
@@ -631,11 +633,12 @@ function deleteExistingMonthFiles(slug, date) {
  * Fetch the total count of transactions for a year range using HEAD request.
  * @returns {Promise<number>} Total count from X-Exported-Rows header
  */
-async function fetchYearCount(slug, year, isHost, token, { fieldSet } = {}) {
+async function fetchYearCount(slug, year, isHost, token, { fieldSet, params } = {}) {
   const url = buildRestUrl(slug, year.start, isHost, {
     dateFrom: year.start,
     dateTo: year.end,
     fieldSet,
+    params,
   });
 
   const response = await fetchWithRetry(url, {
@@ -692,10 +695,10 @@ function deleteExistingYearFiles(slug, date) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadYearTransactions(slug, year, options) {
-  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet } = options;
+  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet, params } = options;
 
   // Get total count first
-  const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet });
+  const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet, params });
 
   if (totalCount === 0) {
     return { downloaded: 0, empty: true, error: null };
@@ -718,6 +721,7 @@ async function downloadYearTransactions(slug, year, options) {
       dateFrom: year.start,
       dateTo: year.end,
       fieldSet,
+      params,
     });
 
     // Check for API error appended to response
@@ -763,10 +767,10 @@ async function downloadYearTransactions(slug, year, options) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadMonthTransactions(slug, month, options) {
-  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet } = options;
+  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet, params } = options;
 
   // Get total count first
-  const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet });
+  const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet, params });
 
   if (totalCount === 0) {
     return { downloaded: 0, empty: true, error: null };
@@ -791,6 +795,7 @@ async function downloadMonthTransactions(slug, month, options) {
       dateFrom: month.start,
       dateTo: month.end,
       fieldSet,
+      params,
     });
 
     // Check for API error appended to response
@@ -836,11 +841,11 @@ async function downloadMonthTransactions(slug, month, options) {
  * @returns {{ downloaded: number, empty: boolean, error: string|null }}
  */
 async function downloadDateTransactions(slug, date, options) {
-  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet } = options;
+  const { token, isHost, delayMs, accountDir = slug, pageLimit = DEFAULT_PAGE_LIMIT, fieldSet, params } = options;
   const dateStr = formatDate(date);
 
   // Get total count first
-  const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet });
+  const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet, params });
 
   if (totalCount === 0) {
     return { downloaded: 0, empty: true, error: null };
@@ -860,6 +865,7 @@ async function downloadDateTransactions(slug, date, options) {
       limit: pageLimit,
       offset,
       fieldSet,
+      params,
     });
 
     // Check for API error appended to response (happens when API fails mid-stream)
@@ -914,6 +920,7 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
     accountDir = slug,
     pageLimit = DEFAULT_PAGE_LIMIT,
     fieldSet,
+    params,
   } = options;
 
   const dates = generateDateRange(startDate, endDate);
@@ -960,7 +967,7 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
           }
 
           // Last page is full → ambiguous, verify with HEAD request
-          const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet });
+          const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet, params });
           const expectedPages = Math.ceil(totalCount / pageLimit);
 
           if (existingPages >= expectedPages) {
@@ -974,7 +981,7 @@ async function downloadTransactionsDaily(slug, startDate, endDate, options) {
       }
 
       if (dryRun) {
-        const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet });
+        const totalCount = await fetchCount(slug, date, isHost, token, { fieldSet, params });
         const pageCount = Math.ceil(totalCount / pageLimit) || 1;
         console.log(`  [DRY] ${dateStr} - would download ${totalCount} transaction(s) in ${pageCount} file(s)`);
         continue;
@@ -1036,6 +1043,7 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
     accountDir = slug,
     pageLimit = DEFAULT_PAGE_LIMIT,
     fieldSet,
+    params,
   } = options;
 
   const months = generateMonthRange(startDate, endDate);
@@ -1077,7 +1085,7 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
             continue;
           }
 
-          const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet });
+          const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet, params });
           const expectedPages = Math.ceil(totalCount / pageLimit);
 
           if (existingPages >= expectedPages) {
@@ -1091,7 +1099,7 @@ async function downloadTransactionsMonthly(slug, startDate, endDate, options) {
       }
 
       if (dryRun) {
-        const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet });
+        const totalCount = await fetchMonthCount(slug, month, isHost, token, { fieldSet, params });
         const pageCount = Math.ceil(totalCount / pageLimit) || 1;
         console.log(`  [DRY] ${monthStr} - would download ${totalCount} transaction(s) in ${pageCount} file(s)`);
         continue;
@@ -1152,6 +1160,7 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
     accountDir = slug,
     pageLimit = DEFAULT_PAGE_LIMIT,
     fieldSet,
+    params,
   } = options;
 
   const years = generateYearRange(startDate, endDate);
@@ -1193,7 +1202,7 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
             continue;
           }
 
-          const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet });
+          const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet, params });
           const expectedPages = Math.ceil(totalCount / pageLimit);
 
           if (existingPages >= expectedPages) {
@@ -1207,7 +1216,7 @@ async function downloadTransactionsYearly(slug, startDate, endDate, options) {
       }
 
       if (dryRun) {
-        const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet });
+        const totalCount = await fetchYearCount(slug, year, isHost, token, { fieldSet, params });
         const pageCount = Math.ceil(totalCount / pageLimit) || 1;
         console.log(`  [DRY] ${yearStr} - would download ${totalCount} transaction(s) in ${pageCount} file(s)`);
         continue;
@@ -1446,6 +1455,15 @@ async function main(argv = process.argv) {
     process.exit(1);
   }
 
+  // Per-call request parameter overrides from config (booleans → '1'/'0' for the API)
+  const boolParam = (v) => (v === true ? '1' : v === false ? '0' : v);
+  const params = {};
+  for (const key of ['useFieldNames', 'flattenTaxesAndPaymentProcessorFees']) {
+    if (key in downloadConfig) {
+      params[key] = boolParam(downloadConfig[key]);
+    }
+  }
+
   // Download
   const stats = await downloadTransactions(slug, startDate, endDate, {
     token,
@@ -1457,6 +1475,7 @@ async function main(argv = process.argv) {
     accountDir,
     pageLimit,
     fieldSet,
+    params,
   });
 
   // Print summary

@@ -32,14 +32,16 @@ When set, `slug` is used by `ofi-csv-download` for API requests, `ofi-hledger-co
 
 ### ofi-csv-download
 
-| Key          | Type    | Description                                                      |
-| ------------ | ------- | ---------------------------------------------------------------- |
-| `host`       | boolean | Use `hostTransactions` endpoint                                  |
-| `strategy`   | string  | Download strategy: `daily`, `monthly`, `yearly`                  |
-| `from`       | string  | Default start date (YYYY-MM-DD)                                  |
-| `fields`     | string  | Field set preset: `default`, `platform-default`                  |
-| `page-limit` | number  | Max transactions per file/request (default: `1000`)              |
-| `rate-limit` | number  | Max requests per minute (default: `60` with token, `10` without) |
+| Key                                   | Type            | Description                                                                                                                                    |
+| ------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `host`                                | boolean         | Use `hostTransactions` endpoint                                                                                                                |
+| `strategy`                            | string          | Download strategy: `daily`, `monthly`, `yearly`                                                                                                |
+| `from`                                | string          | Default start date (YYYY-MM-DD)                                                                                                                |
+| `fields`                              | string \| array | Preset name (`default`, `platform-default`), comma-separated field names, or array of field names                                              |
+| `useFieldNames`                       | boolean         | Use camelCase API field names as CSV headers (default: `true`). Set to `false` for human-readable headers                                      |
+| `flattenTaxesAndPaymentProcessorFees` | boolean         | Expose taxes and processor fees as separate columns instead of inline rows (default: `true`, except `false` for the `platform-default` preset) |
+| `page-limit`                          | number          | Max transactions per file/request (default: `1000`)                                                                                            |
+| `rate-limit`                          | number          | Max requests per minute (default: `60` with token, `10` without)                                                                               |
 
 ### ofi-hledger-convert
 
@@ -107,6 +109,23 @@ export default {
   'ofi-csv-download': { strategy: 'monthly', from: '2025-01-01' },
   'ofi-hledger-convert': {
     output: 'babel-transactions.journal',
+  },
+};
+```
+
+### Custom field set
+
+```js
+// opensource/ofi-ledger.config.js
+export default {
+  slug: 'opensource',
+  'ofi-csv-download': {
+    host: true,
+    strategy: 'daily',
+    from: '2016-07-01',
+    useFieldNames: false,
+    flattenTaxesAndPaymentProcessorFees: true,
+    fields: ['effectiveDate', 'description', 'netAmount', 'currency', 'accountSlug'],
   },
 };
 ```

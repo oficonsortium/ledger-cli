@@ -33,20 +33,20 @@ ofi-csv-download ofitech --dry-run
 
 ## Options
 
-| Option                  | Description                                        | Default                                 |
-| ----------------------- | -------------------------------------------------- | --------------------------------------- |
-| `--host`                | Use `hostTransactions` endpoint (for fiscal hosts) | `false`                                 |
-| `--from <date>`         | Start date (YYYY-MM-DD)                            | config `from` or Jan 1 of previous year |
-| `--to <date>`           | End date (YYYY-MM-DD)                              | today                                   |
-| `--days <n>`            | Number of days (overrides `--from`)                |                                         |
-| `--daily`               | Download by day instead of by month                | `false`                                 |
-| `--yearly`              | Download by year instead of by month               | `false`                                 |
-| `--strategy <strategy>` | Download strategy: `daily`, `monthly`, `yearly`    | `monthly`                               |
-| `--fields <preset>`     | Field set preset: `default`, `platform-default`    | `default`                               |
-| `--replace`             | Replace existing files                             | `false`                                 |
-| `--dry-run`             | Show what would be downloaded                      | `false`                                 |
-| `--page-limit <n>`      | Max transactions per file/request                  | `1000`                                  |
-| `--rate-limit <n>`      | Max requests per minute                            | `60` with token, `10` without           |
+| Option                    | Description                                                           | Default                                 |
+| ------------------------- | --------------------------------------------------------------------- | --------------------------------------- |
+| `--host`                  | Use `hostTransactions` endpoint (for fiscal hosts)                    | `false`                                 |
+| `--from <date>`           | Start date (YYYY-MM-DD)                                               | config `from` or Jan 1 of previous year |
+| `--to <date>`             | End date (YYYY-MM-DD)                                                 | today                                   |
+| `--days <n>`              | Number of days (overrides `--from`)                                   |                                         |
+| `--daily`                 | Download by day instead of by month                                   | `false`                                 |
+| `--yearly`                | Download by year instead of by month                                  | `false`                                 |
+| `--strategy <strategy>`   | Download strategy: `daily`, `monthly`, `yearly`                       | `monthly`                               |
+| `--fields <preset\|list>` | Preset (`default`, `platform-default`) or comma-separated field names | `default`                               |
+| `--replace`               | Replace existing files                                                | `false`                                 |
+| `--dry-run`               | Show what would be downloaded                                         | `false`                                 |
+| `--page-limit <n>`        | Max transactions per file/request                                     | `1000`                                  |
+| `--rate-limit <n>`        | Max requests per minute                                               | `60` with token, `10` without           |
 
 When using an account directory with `ofi-ledger.config.js`, `host`, `daily`, `yearly`, `strategy`, and `from` are loaded from config. CLI flags always override. Note that `ofi-ledger-cli-init` sets `from` to the oldest transaction date, so the config default is typically much earlier than January 1st of the previous year.
 
