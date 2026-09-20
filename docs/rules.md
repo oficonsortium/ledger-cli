@@ -147,11 +147,7 @@ export default {
     processorFeeAccount: 'expenses:payment-processor-fees',
     mainAccount: 'myorg', // Optional
   },
-  deduplication: [
-    /* ... */
-  ],
-  rules: [
-    /* ... */
-  ],
+  deduplication: [/* ... */],
+  rules: [/* ... */],
 };
 ```

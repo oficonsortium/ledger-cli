@@ -6,15 +6,9 @@ Per-account configuration file. Place in each account directory to set defaults 
 
 ```js
 export default {
-  'ofi-csv-download': {
-    /* ... */
-  },
-  'ofi-hledger-convert': {
-    /* ... */
-  },
-  'ofi-hledger': {
-    /* ... */
-  },
+  'ofi-csv-download': {/* ... */},
+  'ofi-hledger-convert': {/* ... */},
+  'ofi-hledger': {/* ... */},
 };
 ```
 
